@@ -2,6 +2,7 @@ package com.tpa.auth.service;
 
 import com.tpa.auth.dto.AuthResponse;
 import com.tpa.auth.dto.AuthenticatedUserResponse;
+import com.tpa.auth.dto.ChangePasswordRequest;
 import com.tpa.auth.dto.CustomerLoginRequest;
 import com.tpa.auth.dto.CustomerRegistrationRequest;
 import com.tpa.auth.dto.StaticRoleLoginRequest;
@@ -62,6 +63,7 @@ public class AuthService {
                 .dateOfBirth(request.dateOfBirth())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .role(UserRole.CUSTOMER)
+                .active(true)
                 .createdBy(email)
                 .updatedBy(email)
                 .build();
@@ -91,6 +93,8 @@ public class AuthService {
             throw new UnauthorizedException("Invalid email or password.");
         }
 
+        validateAccountActive(user);
+
         return buildAuthResponse(TpaUserPrincipal.fromUser(user));
     }
 
@@ -116,7 +120,8 @@ public class AuthService {
                 getDisplayNameForRole(role),
                 email,
                 "",
-                role
+                role,
+                true
         );
 
         return buildAuthResponse(principal);
@@ -128,6 +133,43 @@ public class AuthService {
         }
 
         return toAuthenticatedUserResponse(principal);
+    }
+
+    @Transactional
+    public void changePassword(Authentication authentication, ChangePasswordRequest request) {
+        TpaUserPrincipal principal = extractPrincipal(authentication);
+
+        if (principal.getId() == null) {
+            throw new ValidationException("Password change is not available for static role accounts.");
+        }
+
+        User user = userRepository.findById(principal.getId())
+                .orElseThrow(() -> new UnauthorizedException("User not found."));
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new ValidationException("Current password is incorrect.");
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+            throw new ValidationException("New password must be different from the current password.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setUpdatedBy(user.getEmail());
+        userRepository.save(user);
+    }
+
+    private TpaUserPrincipal extractPrincipal(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof TpaUserPrincipal principal)) {
+            throw new UnauthorizedException("Authentication is required.");
+        }
+        return principal;
+    }
+
+    private void validateAccountActive(User user) {
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Account is deactivated. Please contact support.");
+        }
     }
 
     private void validateCustomerUniqueness(String email, String mobile) {

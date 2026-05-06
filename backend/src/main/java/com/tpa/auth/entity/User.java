@@ -15,6 +15,8 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
 
+import org.hibernate.annotations.ColumnDefault;
+
 @Getter
 @Setter
 @Entity
@@ -42,4 +44,8 @@ public class User extends AuditEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 50)
     private UserRole role;
+
+    @ColumnDefault("true")
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
 }

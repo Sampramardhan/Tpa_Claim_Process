@@ -17,13 +17,15 @@ public class TpaUserPrincipal implements UserDetails {
     private final String email;
     private final String password;
     private final UserRole role;
+    private final boolean active;
 
-    public TpaUserPrincipal(UUID id, String fullName, String email, String password, UserRole role) {
+    public TpaUserPrincipal(UUID id, String fullName, String email, String password, UserRole role, boolean active) {
         this.id = id;
         this.fullName = fullName;
         this.email = email;
         this.password = password;
         this.role = role;
+        this.active = active;
     }
 
     public static TpaUserPrincipal fromUser(User user) {
@@ -32,7 +34,8 @@ public class TpaUserPrincipal implements UserDetails {
                 user.getFullName(),
                 user.getEmail(),
                 user.getPasswordHash(),
-                user.getRole()
+                user.getRole(),
+                user.isActive()
         );
     }
 
@@ -74,7 +77,7 @@ public class TpaUserPrincipal implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return active;
     }
 
     @Override
@@ -84,6 +87,6 @@ public class TpaUserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return active;
     }
 }

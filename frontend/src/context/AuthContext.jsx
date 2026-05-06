@@ -4,6 +4,8 @@ import {
   loginCustomer as loginCustomerRequest,
   loginStaticRole as loginStaticRoleRequest,
   registerCustomer as registerCustomerRequest,
+  changePassword as changePasswordRequest,
+  logoutUser as logoutUserRequest,
 } from '../services/api/authApi.js';
 import { isSessionExpired } from '../utils/authUtils.js';
 
@@ -61,10 +63,22 @@ function AuthProvider({ children }) {
     [saveAuthResponse],
   );
 
-  const logout = useCallback(() => {
-    setSession(null);
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  const changePassword = useCallback(async (payload) => {
+    return await changePasswordRequest(payload);
   }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      if (session?.token) {
+        await logoutUserRequest();
+      }
+    } catch (error) {
+      console.error('Logout API call failed:', error);
+    } finally {
+      setSession(null);
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }, [session]);
 
   const value = useMemo(
     () => ({
@@ -75,9 +89,10 @@ function AuthProvider({ children }) {
       registerCustomer,
       loginCustomer,
       loginStaticRole,
+      changePassword,
       logout,
     }),
-    [loginCustomer, loginStaticRole, logout, registerCustomer, session],
+    [loginCustomer, loginStaticRole, logout, registerCustomer, changePassword, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

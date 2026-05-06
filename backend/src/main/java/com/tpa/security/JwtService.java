@@ -71,7 +71,8 @@ public class JwtService {
                 claims.get(FULL_NAME_CLAIM, String.class),
                 claims.getSubject(),
                 "",
-                UserRole.valueOf(role)
+                UserRole.valueOf(role),
+                true
         );
     }
 
