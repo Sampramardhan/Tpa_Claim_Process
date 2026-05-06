@@ -1,16 +1,16 @@
 package com.tpa.exception;
 
+import com.tpa.utils.DateTimeUtils;
 import java.time.LocalDateTime;
 
 public record ErrorResponse(
-        LocalDateTime timestamp,
-        int status,
-        String error,
+        String errorCode,
         String message,
-        String path
+        Object details,
+        LocalDateTime timestamp
 ) {
 
-    public static ErrorResponse of(int status, String error, String message, String path) {
-        return new ErrorResponse(LocalDateTime.now(), status, error, message, path);
+    public static ErrorResponse of(String errorCode, String message, Object details) {
+        return new ErrorResponse(errorCode, message, details, DateTimeUtils.nowUtc());
     }
 }
