@@ -1,0 +1,40 @@
+HELP.md
+.gradle/
+build/
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+### Java ###
+*.class
+*.log
+
+### Maven ###
+dependency-reduced-pom.xml
+.m2/
+
+### Node ###
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+### Environment ###
+.env
+.env.*
+!.env.example
+
+### Local tools ###
+.tools/
+.github/java-upgrade/
+
+### IDE ###
+.idea/
+.vscode/
+*.iml
+
+### OS ###
+.DS_Store
+Thumbs.db
