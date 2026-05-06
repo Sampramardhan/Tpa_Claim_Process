@@ -1,8 +1,12 @@
 import { X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth.js';
 import { navigationRoutes } from '../../routes/routeConfig.js';
 
 function Sidebar({ isOpen, onClose }) {
+  const { user } = useAuth();
+  const visibleRoutes = navigationRoutes.filter((item) => item.roles.includes(user?.role));
+
   return (
     <>
       <div
@@ -34,14 +38,14 @@ function Sidebar({ isOpen, onClose }) {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navigationRoutes.map((item) => {
+          {visibleRoutes.map((item) => {
             const Icon = item.icon;
 
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.path === '/'}
+                end={item.path === '/dashboard'}
                 onClick={onClose}
                 className={({ isActive }) =>
                   [

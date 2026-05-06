@@ -1,0 +1,86 @@
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { AUTH_STORAGE_KEY } from '../constants/appConstants.js';
+import {
+  loginCustomer as loginCustomerRequest,
+  loginStaticRole as loginStaticRoleRequest,
+  registerCustomer as registerCustomerRequest,
+} from '../services/api/authApi.js';
+import { isSessionExpired } from '../utils/authUtils.js';
+
+export const AuthContext = createContext(null);
+
+function readStoredSession() {
+  const storedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!storedSession) {
+    return null;
+  }
+
+  try {
+    const session = JSON.parse(storedSession);
+    return session?.token && !isSessionExpired(session.expiresAt) ? session : null;
+  } catch {
+    return null;
+  }
+}
+
+function AuthProvider({ children }) {
+  const [session, setSession] = useState(() => readStoredSession());
+
+  useEffect(() => {
+    if (!session) {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+  }, [session]);
+
+  const saveAuthResponse = useCallback((authResponse) => {
+    const nextSession = {
+      token: authResponse.token,
+      tokenType: authResponse.tokenType,
+      expiresAt: authResponse.expiresAt,
+      user: authResponse.user,
+    };
+    setSession(nextSession);
+    return nextSession;
+  }, []);
+
+  const registerCustomer = useCallback(
+    async (payload) => saveAuthResponse(await registerCustomerRequest(payload)),
+    [saveAuthResponse],
+  );
+
+  const loginCustomer = useCallback(
+    async (payload) => saveAuthResponse(await loginCustomerRequest(payload)),
+    [saveAuthResponse],
+  );
+
+  const loginStaticRole = useCallback(
+    async (payload) => saveAuthResponse(await loginStaticRoleRequest(payload)),
+    [saveAuthResponse],
+  );
+
+  const logout = useCallback(() => {
+    setSession(null);
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      session,
+      token: session?.token || null,
+      user: session?.user || null,
+      isAuthenticated: Boolean(session?.token && session?.user),
+      registerCustomer,
+      loginCustomer,
+      loginStaticRole,
+      logout,
+    }),
+    [loginCustomer, loginStaticRole, logout, registerCustomer, session],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export default AuthProvider;

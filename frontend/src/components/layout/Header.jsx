@@ -1,6 +1,16 @@
-import { Menu, Search } from 'lucide-react';
+import { LogOut, Menu } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth.js';
 
 function Header({ onMenuClick }) {
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
       <div className="flex h-16 items-center gap-4 px-4 sm:px-6 lg:px-8">
@@ -18,10 +28,19 @@ function Header({ onMenuClick }) {
           <h1 className="truncate text-lg font-semibold text-ink-900">Operations Console</h1>
         </div>
 
-        <div className="hidden min-w-72 items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500 md:flex">
-          <Search className="h-4 w-4" aria-hidden="true" />
-          <span>Search workspace</span>
+        <div className="hidden min-w-0 text-right md:block">
+          <p className="truncate text-sm font-semibold text-ink-900">{user?.fullName}</p>
+          <p className="text-xs font-medium uppercase text-slate-500">{user?.role}</p>
         </div>
+
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-slate-700 transition hover:bg-slate-50"
+          onClick={handleLogout}
+          aria-label="Sign out"
+        >
+          <LogOut className="h-5 w-5" aria-hidden="true" />
+        </button>
       </div>
     </header>
   );

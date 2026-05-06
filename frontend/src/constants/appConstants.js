@@ -5,6 +5,15 @@ export const USER_ROLES = Object.freeze({
   CARRIER: 'CARRIER',
 });
 
+export const AUTH_STORAGE_KEY = 'tpa.auth.session';
+
+export const ROLE_HOME_PATHS = Object.freeze({
+  [USER_ROLES.CUSTOMER]: '/customer',
+  [USER_ROLES.CLIENT]: '/client',
+  [USER_ROLES.FMG]: '/fmg',
+  [USER_ROLES.CARRIER]: '/carrier',
+});
+
 export const CLAIM_STATUSES = Object.freeze({
   SUBMITTED: 'SUBMITTED',
   UNDER_REVIEW: 'UNDER_REVIEW',
