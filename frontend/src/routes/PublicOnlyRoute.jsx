@@ -3,7 +3,11 @@ import { useAuth } from '../hooks/useAuth.js';
 import { getRoleHomePath } from '../utils/authUtils.js';
 
 function PublicOnlyRoute({ children }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isInitialized, user } = useAuth();
+
+  if (!isInitialized) {
+    return null;
+  }
 
   if (isAuthenticated) {
     return <Navigate to={getRoleHomePath(user?.role)} replace />;

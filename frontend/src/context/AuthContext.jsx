@@ -12,7 +12,7 @@ import { isSessionExpired } from '../utils/authUtils.js';
 export const AuthContext = createContext(null);
 
 function readStoredSession() {
-  const storedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  const storedSession = window.sessionStorage.getItem(AUTH_STORAGE_KEY);
   if (!storedSession) {
     return null;
   }
@@ -27,14 +27,24 @@ function readStoredSession() {
 
 function AuthProvider({ children }) {
   const [session, setSession] = useState(() => readStoredSession());
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    // Set initialized to true after the first render
+    setIsInitialized(true);
+  }, []);
+
+  useEffect(() => {
+    // Don't modify storage until we've finished initialization
+    if (!isInitialized) {
+      return;
+    }
     if (!session) {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
       return;
     }
 
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
+    window.sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
   }, [session]);
 
   const saveAuthResponse = useCallback((authResponse) => {
@@ -76,13 +86,14 @@ function AuthProvider({ children }) {
       console.error('Logout API call failed:', error);
     } finally {
       setSession(null);
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
     }
   }, [session]);
 
   const value = useMemo(
     () => ({
       session,
+      isInitialized,
       token: session?.token || null,
       user: session?.user || null,
       isAuthenticated: Boolean(session?.token && session?.user),
@@ -92,7 +103,7 @@ function AuthProvider({ children }) {
       changePassword,
       logout,
     }),
-    [loginCustomer, loginStaticRole, logout, registerCustomer, changePassword, session],
+    [loginCustomer, loginStaticRole, logout, registerCustomer, changePassword, session, isInitialized],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

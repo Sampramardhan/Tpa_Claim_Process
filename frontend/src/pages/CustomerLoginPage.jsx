@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthShell from '../components/auth/AuthShell.jsx';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
+import PasswordField from '../components/common/PasswordField.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { getApiErrorMessage, getRoleHomePath } from '../utils/authUtils.js';
 
@@ -73,18 +74,14 @@ function CustomerLoginPage() {
           {fieldErrors.email ? <span className="mt-1 block text-xs text-red-600">{fieldErrors.email}</span> : null}
         </label>
 
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Password</span>
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={updateField}
-            className="mt-1 h-11 w-full rounded-md border border-slate-300 px-3 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
-            autoComplete="current-password"
-          />
-          {fieldErrors.password ? <span className="mt-1 block text-xs text-red-600">{fieldErrors.password}</span> : null}
-        </label>
+        <PasswordField
+          label="Password"
+          name="password"
+          value={form.password}
+          onChange={updateField}
+          error={fieldErrors.password}
+          autoComplete="current-password"
+        />
 
         <button
           type="submit"

@@ -9,7 +9,18 @@ export function isSessionExpired(expiresAt) {
     return true;
   }
 
-  return new Date(expiresAt).getTime() <= Date.now();
+  // Handle case where expiresAt might be a LocalDateTime string without timezone
+  // If it doesn't contain 'Z' or '+' or '-', we assume it's UTC for JWT consistency
+  const dateStr = (typeof expiresAt === 'string' && !expiresAt.includes('Z') && !expiresAt.includes('+'))
+    ? `${expiresAt}Z`
+    : expiresAt;
+
+  const expiryTime = new Date(dateStr).getTime();
+  if (isNaN(expiryTime)) {
+    return false; // If invalid date, don't assume expired
+  }
+
+  return expiryTime <= Date.now();
 }
 
 export function getApiErrorMessage(error, fallbackMessage = 'Something went wrong.') {

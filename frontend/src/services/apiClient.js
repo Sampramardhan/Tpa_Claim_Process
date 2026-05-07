@@ -11,7 +11,7 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const storedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+  const storedSession = window.sessionStorage.getItem(AUTH_STORAGE_KEY);
   if (!storedSession) {
     return config;
   }
@@ -22,7 +22,7 @@ apiClient.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${session.token}`;
     }
   } catch {
-    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    window.sessionStorage.removeItem(AUTH_STORAGE_KEY);
   }
 
   return config;
