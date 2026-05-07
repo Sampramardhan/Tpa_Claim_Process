@@ -11,6 +11,8 @@ public record ClaimResponse(
         UUID id,
         String claimNumber,
         UUID customerId,
+        String customerName,
+        String customerEmail,
         UUID customerPolicyId,
         String customerPolicyNumber,
         String policyName,

@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import com.tpa.claims.entity.ClaimDocument;
 
 import java.util.List;
 import java.util.UUID;
@@ -59,6 +61,17 @@ public class CustomerClaimController {
         return ApiResponse.success("Claim details loaded.", claimService.getMyClaim(claimId, principal));
     }
 
+    @PostMapping("/{claimId}/submit")
+    public ApiResponse<ClaimResponse> submitMyClaim(
+            @PathVariable UUID claimId,
+            @AuthenticationPrincipal TpaUserPrincipal principal
+    ) {
+        return ApiResponse.success(
+                "Claim submitted successfully.",
+                claimService.submitMyClaim(claimId, principal)
+        );
+    }
+
     @PutMapping("/{claimId}/extracted-data")
     public ApiResponse<ExtractedClaimDataResponse> updateMyClaimExtractedData(
             @PathVariable UUID claimId,
@@ -69,5 +82,20 @@ public class CustomerClaimController {
                 "Extracted claim data updated successfully.",
                 claimService.updateMyClaimExtractedData(claimId, request, principal)
         );
+    }
+
+    @GetMapping("/{claimId}/documents/{documentId}/view")
+    public ResponseEntity<byte[]> viewDocument(
+            @PathVariable UUID claimId,
+            @PathVariable UUID documentId,
+            @AuthenticationPrincipal TpaUserPrincipal principal
+    ) {
+        ClaimDocument document = claimService.getDocument(claimId, documentId, principal);
+        byte[] content = claimService.getDocumentContent(document.getStoredFilePath());
+        String mimeType = claimService.getDocumentMimeType(document.getStoredFileName());
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(mimeType))
+                .body(content);
     }
 }

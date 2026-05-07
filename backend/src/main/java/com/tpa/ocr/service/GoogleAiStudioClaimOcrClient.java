@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tpa.claims.enums.ClaimDocumentType;
 import com.tpa.config.GoogleAiProperties;
 import com.tpa.exception.FileStorageException;
 import com.tpa.ocr.dto.ClaimOcrClientResponse;
@@ -22,15 +23,8 @@ import java.util.List;
 @Service
 public class GoogleAiStudioClaimOcrClient {
 
-    private static final String EXTRACTION_PROMPT = """
-            You are processing two uploaded insurance claim documents.
+    private static final String COMMON_EXTRACTION_RULES = """
             Extract only the structured fields requested below and return valid JSON that matches the provided schema.
-
-            Document expectations:
-            - Claim Form: policyNumber, customerName, patientName, carrierName, policyName, hospitalName,
-              admissionDate, dischargeDate, claimedAmount, claimType.
-            - Combined Hospital Document: patientName, hospitalName, admissionDate, dischargeDate,
-              diagnosis, billNumber, billDate, totalBillAmount.
 
             Rules:
             - Use null when a field is missing or unreadable.
@@ -39,6 +33,39 @@ public class GoogleAiStudioClaimOcrClient {
             - Prefer the clearest value when the same field appears in multiple places.
             - Do not invent values that are not visible in the documents.
             """;
+
+    private static final String CLAIM_FORM_EXTRACTION_PROMPT = """
+            You are processing uploaded insurance claim form documents.
+            Extract claim form values for:
+            - policyNumber
+            - policyName
+            - customerName
+            - patientName
+            - carrierName
+            - claimType
+            - claimedAmount
+
+            If the claim form clearly also includes hospitalName, admissionDate, or dischargeDate, you may return them.
+            Leave diagnosis, billNumber, billDate, and totalBillAmount as null unless they are unmistakably present on the claim form.
+
+            """ + COMMON_EXTRACTION_RULES;
+
+    private static final String HOSPITAL_DOCUMENT_EXTRACTION_PROMPT = """
+            You are processing uploaded combined hospital, discharge, and billing documents.
+            Extract hospital document values for:
+            - patientName
+            - hospitalName
+            - admissionDate
+            - dischargeDate
+            - diagnosis
+            - billNumber
+            - billDate
+            - totalBillAmount
+
+            Leave policyNumber, policyName, customerName, carrierName, claimType, and claimedAmount as null unless they are
+            unmistakably visible in these hospital documents.
+
+            """ + COMMON_EXTRACTION_RULES;
 
     private final GoogleAiProperties googleAiProperties;
     private final ObjectMapper objectMapper;
@@ -57,11 +84,44 @@ public class GoogleAiStudioClaimOcrClient {
     }
 
     public ClaimOcrClientResponse extractClaimData(List<ClaimOcrSourceDocument> documents) {
+        if (documents == null || documents.isEmpty()) {
+            throw new FileStorageException("No uploaded claim documents were provided for OCR extraction.");
+        }
+
         if (!StringUtils.hasText(googleAiProperties.getApiKey())) {
             throw new FileStorageException("Google AI API key is not configured for OCR extraction.");
         }
 
-        ObjectNode requestBody = buildRequestBody(documents);
+        List<ClaimOcrSourceDocument> claimFormDocuments = documents.stream()
+                .filter(document -> document.documentType() == ClaimDocumentType.CLAIM_FORM)
+                .toList();
+        List<ClaimOcrSourceDocument> hospitalDocuments = documents.stream()
+                .filter(document -> document.documentType() == ClaimDocumentType.HOSPITAL_DOCUMENT)
+                .toList();
+
+        ClaimOcrClientResponse claimFormResponse = claimFormDocuments.isEmpty()
+                ? null
+                : extractStructuredDocumentData(ClaimDocumentType.CLAIM_FORM, claimFormDocuments);
+        ClaimOcrClientResponse hospitalDocumentResponse = hospitalDocuments.isEmpty()
+                ? null
+                : extractStructuredDocumentData(ClaimDocumentType.HOSPITAL_DOCUMENT, hospitalDocuments);
+
+        ClaimOcrExtractionResult mergedResult = ClaimOcrExtractionResult.merge(
+                claimFormResponse == null ? null : claimFormResponse.extractionResult(),
+                hospitalDocumentResponse == null ? null : hospitalDocumentResponse.extractionResult()
+        );
+
+        return new ClaimOcrClientResponse(
+                mergedResult,
+                buildCombinedRawResponse(claimFormResponse, hospitalDocumentResponse, mergedResult)
+        );
+    }
+
+    protected ClaimOcrClientResponse extractStructuredDocumentData(
+            ClaimDocumentType documentType,
+            List<ClaimOcrSourceDocument> documents
+    ) {
+        ObjectNode requestBody = buildRequestBody(resolvePrompt(documentType), documents);
 
         try {
             String rawResponse = restClient.post()
@@ -103,15 +163,16 @@ public class GoogleAiStudioClaimOcrClient {
         }
     }
 
-    private ObjectNode buildRequestBody(List<ClaimOcrSourceDocument> documents) {
+    private ObjectNode buildRequestBody(String prompt, List<ClaimOcrSourceDocument> documents) {
         ObjectNode root = objectMapper.createObjectNode();
         ArrayNode contents = root.putArray("contents");
         ObjectNode content = contents.addObject();
         ArrayNode parts = content.putArray("parts");
-        parts.addObject().put("text", EXTRACTION_PROMPT);
+        parts.addObject().put("text", prompt);
 
         for (ClaimOcrSourceDocument document : documents) {
             parts.addObject().put("text", "Document type: " + document.documentType().name());
+            parts.addObject().put("text", "Original file name: " + document.originalFileName());
             ObjectNode inlineData = parts.addObject().putObject("inlineData");
             inlineData.put("mimeType", document.mimeType());
             inlineData.put("data", Base64.getEncoder().encodeToString(document.fileBytes()));
@@ -122,6 +183,47 @@ public class GoogleAiStudioClaimOcrClient {
         generationConfig.put("temperature", 0);
         generationConfig.set("responseJsonSchema", buildResponseSchema());
         return root;
+    }
+
+    private String resolvePrompt(ClaimDocumentType documentType) {
+        return switch (documentType) {
+            case CLAIM_FORM -> CLAIM_FORM_EXTRACTION_PROMPT;
+            case HOSPITAL_DOCUMENT -> HOSPITAL_DOCUMENT_EXTRACTION_PROMPT;
+        };
+    }
+
+    private String buildCombinedRawResponse(
+            ClaimOcrClientResponse claimFormResponse,
+            ClaimOcrClientResponse hospitalDocumentResponse,
+            ClaimOcrExtractionResult mergedResult
+    ) {
+        ObjectNode root = objectMapper.createObjectNode();
+        ArrayNode documentResponses = root.putArray("documentResponses");
+
+        addDocumentResponse(documentResponses, ClaimDocumentType.CLAIM_FORM, claimFormResponse);
+        addDocumentResponse(documentResponses, ClaimDocumentType.HOSPITAL_DOCUMENT, hospitalDocumentResponse);
+        root.set("mergedExtractionResult", objectMapper.valueToTree(mergedResult));
+
+        try {
+            return objectMapper.writeValueAsString(root);
+        } catch (JsonProcessingException exception) {
+            throw new FileStorageException("Unable to serialize merged OCR response.", exception.getOriginalMessage());
+        }
+    }
+
+    private void addDocumentResponse(
+            ArrayNode documentResponses,
+            ClaimDocumentType documentType,
+            ClaimOcrClientResponse documentResponse
+    ) {
+        if (documentResponse == null) {
+            return;
+        }
+
+        ObjectNode documentNode = documentResponses.addObject();
+        documentNode.put("documentType", documentType.name());
+        documentNode.set("extractionResult", objectMapper.valueToTree(documentResponse.extractionResult()));
+        documentNode.put("rawResponse", documentResponse.rawResponse());
     }
 
     private ObjectNode buildResponseSchema() {

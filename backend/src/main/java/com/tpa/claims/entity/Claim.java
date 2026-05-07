@@ -65,7 +65,7 @@ public class Claim extends AuditEntity {
     @Column(name = "stage", nullable = false, length = 50)
     private ClaimStage stage;
 
-    @Column(name = "submission_date", nullable = false)
+    @Column(name = "submission_date")
     private LocalDateTime submissionDate;
 
     @Builder.Default

@@ -86,15 +86,15 @@ public class ClaimService {
             throw new ValidationException("Inactive customer policies cannot be used to create a claim.");
         }
 
-        LocalDateTime submissionDate = DateTimeUtils.nowUtc();
+        LocalDateTime draftCreatedAt = DateTimeUtils.nowUtc();
 
         Claim claim = Claim.builder()
                 .claimNumber(claimNumberGenerator.generate())
                 .customer(customer)
                 .customerPolicy(customerPolicy)
-                .status(ClaimStatus.SUBMITTED)
-                .stage(ClaimStage.CUSTOMER)
-                .submissionDate(submissionDate)
+                .status(ClaimStatus.DRAFT)
+                .stage(ClaimStage.DRAFT)
+                .submissionDate(draftCreatedAt)
                 .createdBy(principal.getEmail())
                 .updatedBy(principal.getEmail())
                 .build();
@@ -169,6 +169,42 @@ public class ClaimService {
     }
 
     @Transactional
+    public ClaimResponse submitMyClaim(UUID claimId, TpaUserPrincipal principal) {
+        Customer customer = resolveCustomer(principal.getId());
+
+        Claim claim = claimRepository.findByIdAndCustomerIdWithPolicyDetails(claimId, customer.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Claim not found."));
+
+        assertClaimEditable(claim);
+
+        ExtractedClaimData extractedClaimData = extractedClaimDataRepository.findByClaim_Id(claimId)
+                .orElseThrow(() -> new ResourceNotFoundException("Extracted claim data not found."));
+
+        if (!isTerminalOcrStatus(extractedClaimData.getOcrStatus())) {
+            throw new ValidationException("Claim OCR review is still in progress.");
+        }
+
+        claim.setStatus(ClaimStatus.SUBMITTED);
+        claim.setStage(ClaimStage.CUSTOMER_SUBMITTED);
+        claim.setSubmissionDate(DateTimeUtils.nowUtc());
+        claim.setUpdatedBy(principal.getEmail());
+
+        Claim savedClaim = claimRepository.save(claim);
+        savedClaim.setExtractedClaimData(extractedClaimData);
+        return toClaimResponse(savedClaim);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClaimResponse> getClientReviewQueue() {
+        return claimRepository.findAllByStageAndStatusWithDetails(
+                        ClaimStage.CUSTOMER_SUBMITTED,
+                        ClaimStatus.SUBMITTED
+                ).stream()
+                .map(this::toClaimResponse)
+                .toList();
+    }
+
+    @Transactional
     public ExtractedClaimDataResponse updateMyClaimExtractedData(
             UUID claimId,
             UpdateExtractedClaimDataRequest request,
@@ -176,8 +212,10 @@ public class ClaimService {
     ) {
         Customer customer = resolveCustomer(principal.getId());
 
-        claimRepository.findByIdAndCustomerIdWithPolicyDetails(claimId, customer.getId())
+        Claim claim = claimRepository.findByIdAndCustomerIdWithPolicyDetails(claimId, customer.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Claim not found."));
+
+        assertClaimEditable(claim);
 
         ExtractedClaimData extractedClaimData = extractedClaimDataRepository.findByClaim_Id(claimId)
                 .orElseThrow(() -> new ResourceNotFoundException("Extracted claim data not found."));
@@ -201,9 +239,42 @@ public class ClaimService {
         return toExtractedClaimDataResponse(savedData);
     }
 
+    @Transactional(readOnly = true)
+    public byte[] getDocumentContent(String storedFilePath) {
+        return claimFileStorageService.readStoredFile(storedFilePath);
+    }
+
+    @Transactional(readOnly = true)
+    public ClaimDocument getDocument(UUID claimId, UUID documentId, TpaUserPrincipal principal) {
+        Customer customer = resolveCustomer(principal.getId());
+
+        ClaimDocument document = claimDocumentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found."));
+
+        if (!document.getClaim().getId().equals(claimId) || !document.getClaim().getCustomer().getId().equals(customer.getId())) {
+            throw new ValidationException("You do not have permission to access this document.");
+        }
+
+        return document;
+    }
+
+    public String getDocumentMimeType(String fileName) {
+        return claimFileStorageService.resolveMimeType(fileName);
+    }
+
     private Customer resolveCustomer(UUID userId) {
         return customerRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer profile not found."));
+    }
+
+    private void assertClaimEditable(Claim claim) {
+        if (claim.getStatus() != ClaimStatus.DRAFT || claim.getStage() != ClaimStage.DRAFT) {
+            throw new ValidationException("Claim has already been submitted and can no longer be edited.");
+        }
+    }
+
+    private boolean isTerminalOcrStatus(OcrStatus ocrStatus) {
+        return ocrStatus == OcrStatus.COMPLETED || ocrStatus == OcrStatus.FAILED;
     }
 
     private ClaimResponse toClaimResponse(Claim claim) {
@@ -211,6 +282,8 @@ public class ClaimService {
                 claim.getId(),
                 claim.getClaimNumber(),
                 claim.getCustomer().getId(),
+                claim.getCustomer().getFullName(),
+                claim.getCustomer().getEmail(),
                 claim.getCustomerPolicy().getId(),
                 claim.getCustomerPolicy().getUniquePolicyNumber(),
                 claim.getCustomerPolicy().getPolicy().getPolicyName(),

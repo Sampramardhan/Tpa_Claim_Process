@@ -35,3 +35,19 @@ export async function updateClaimExtractedData(claimId, payload) {
   const response = await apiClient.put(`/customer/claims/${claimId}/extracted-data`, payload);
   return response.data.data;
 }
+
+export async function submitClaim(claimId) {
+  const response = await apiClient.post(`/customer/claims/${claimId}/submit`);
+  return response.data.data;
+}
+
+export async function getClientClaimsQueue() {
+  const response = await apiClient.get('/client/claims');
+  return response.data.data;
+}
+
+export function getDocumentViewUrl(claimId, documentId, token) {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+  const url = `${baseUrl}/customer/claims/${claimId}/documents/${documentId}/view`;
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}

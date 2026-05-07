@@ -19,7 +19,7 @@ public interface ClaimRepository extends JpaRepository<Claim, UUID> {
             JOIN FETCH p.carrier
             LEFT JOIN FETCH c.extractedClaimData
             WHERE c.customer.id = :customerId
-            ORDER BY c.submissionDate DESC, c.createdAt DESC
+            ORDER BY COALESCE(c.submissionDate, c.createdAt) DESC, c.createdAt DESC
             """)
     List<Claim> findAllByCustomerIdWithPolicyDetails(@Param("customerId") UUID customerId);
 
@@ -46,6 +46,21 @@ public interface ClaimRepository extends JpaRepository<Claim, UUID> {
             WHERE c.id = :claimId
             """)
     Optional<Claim> findByIdWithPolicyDetails(@Param("claimId") UUID claimId);
+
+    @Query("""
+            SELECT c FROM Claim c
+            JOIN FETCH c.customer
+            JOIN FETCH c.customerPolicy cp
+            JOIN FETCH cp.policy p
+            JOIN FETCH p.carrier
+            LEFT JOIN FETCH c.extractedClaimData
+            WHERE c.stage = :stage AND c.status = :status
+            ORDER BY c.submissionDate DESC, c.createdAt DESC
+            """)
+    List<Claim> findAllByStageAndStatusWithDetails(
+            @Param("stage") com.tpa.common.enums.ClaimStage stage,
+            @Param("status") com.tpa.common.enums.ClaimStatus status
+    );
 
     Optional<Claim> findByClaimNumber(String claimNumber);
 

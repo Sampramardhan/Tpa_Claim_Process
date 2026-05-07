@@ -58,11 +58,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String resolveToken(HttpServletRequest request) {
         String header = request.getHeader(AUTHORIZATION_HEADER);
-        if (header == null || !header.startsWith(BEARER_PREFIX)) {
-            return null;
+        if (header != null && header.startsWith(BEARER_PREFIX)) {
+            return header.substring(BEARER_PREFIX.length());
         }
 
-        return header.substring(BEARER_PREFIX.length());
+        // Support token as query parameter for iframes/images
+        String queryToken = request.getParameter("token");
+        if (queryToken != null && !queryToken.isBlank()) {
+            return queryToken;
+        }
+
+        return null;
     }
 
     private TpaUserPrincipal resolvePrincipal(TpaUserPrincipal tokenPrincipal) {
