@@ -13,6 +13,14 @@ public interface CustomerPolicyRepository extends JpaRepository<CustomerPolicy, 
 
     @Query("SELECT cp FROM CustomerPolicy cp " +
            "JOIN FETCH cp.policy p JOIN FETCH p.carrier " +
+           "WHERE cp.id = :policyId AND cp.customer.id = :customerId")
+    Optional<CustomerPolicy> findByIdAndCustomerIdWithPolicyDetails(
+            @Param("policyId") UUID policyId,
+            @Param("customerId") UUID customerId
+    );
+
+    @Query("SELECT cp FROM CustomerPolicy cp " +
+           "JOIN FETCH cp.policy p JOIN FETCH p.carrier " +
            "JOIN FETCH cp.customer " +
            "WHERE cp.customer.id = :customerId")
     List<CustomerPolicy> findAllByCustomerIdWithDetails(@Param("customerId") UUID customerId);

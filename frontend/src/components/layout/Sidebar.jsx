@@ -45,7 +45,7 @@ function Sidebar({ isOpen, onClose }) {
               <NavLink
                 key={item.path}
                 to={item.path}
-                end={item.path === '/dashboard'}
+                end={item.end}
                 onClick={onClose}
                 className={({ isActive }) =>
                   [

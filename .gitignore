@@ -29,6 +29,8 @@ pnpm-debug.log*
 ### Local tools ###
 .tools/
 .github/java-upgrade/
+uploads/
+backend/uploads/
 
 ### IDE ###
 .idea/

@@ -5,6 +5,7 @@ import AuthLandingPage from '../pages/AuthLandingPage.jsx';
 import CarrierPage from '../pages/CarrierPage.jsx';
 import ClientPage from '../pages/ClientPage.jsx';
 import CustomerLoginPage from '../pages/CustomerLoginPage.jsx';
+import CustomerClaimsPage from '../pages/CustomerClaimsPage.jsx';
 import CustomerPage from '../pages/CustomerPage.jsx';
 import CustomerRegisterPage from '../pages/CustomerRegisterPage.jsx';
 import DashboardPage from '../pages/DashboardPage.jsx';
@@ -56,6 +57,7 @@ function AppRoutes() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route element={<ProtectedRoute allowedRoles={[USER_ROLES.CUSTOMER]} />}>
             <Route path="customer" element={<CustomerPage />} />
+            <Route path="customer/claims" element={<CustomerClaimsPage />} />
           </Route>
           <Route element={<ProtectedRoute allowedRoles={[USER_ROLES.CLIENT]} />}>
             <Route path="client" element={<ClientPage />} />
