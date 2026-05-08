@@ -9,6 +9,7 @@ import com.tpa.claims.enums.ClaimDocumentType;
 import com.tpa.config.GoogleAiProperties;
 import com.tpa.exception.FileStorageException;
 import com.tpa.ocr.dto.ClaimOcrClientResponse;
+import com.tpa.ocr.dto.ClaimOcrDocumentResponse;
 import com.tpa.ocr.dto.ClaimOcrExtractionResult;
 import com.tpa.ocr.dto.ClaimOcrSourceDocument;
 import org.springframework.http.MediaType;
@@ -99,10 +100,10 @@ public class GoogleAiStudioClaimOcrClient {
                 .filter(document -> document.documentType() == ClaimDocumentType.HOSPITAL_DOCUMENT)
                 .toList();
 
-        ClaimOcrClientResponse claimFormResponse = claimFormDocuments.isEmpty()
+        ClaimOcrDocumentResponse claimFormResponse = claimFormDocuments.isEmpty()
                 ? null
                 : extractStructuredDocumentData(ClaimDocumentType.CLAIM_FORM, claimFormDocuments);
-        ClaimOcrClientResponse hospitalDocumentResponse = hospitalDocuments.isEmpty()
+        ClaimOcrDocumentResponse hospitalDocumentResponse = hospitalDocuments.isEmpty()
                 ? null
                 : extractStructuredDocumentData(ClaimDocumentType.HOSPITAL_DOCUMENT, hospitalDocuments);
 
@@ -113,11 +114,13 @@ public class GoogleAiStudioClaimOcrClient {
 
         return new ClaimOcrClientResponse(
                 mergedResult,
+                claimFormResponse == null ? null : claimFormResponse.extractionResult(),
+                hospitalDocumentResponse == null ? null : hospitalDocumentResponse.extractionResult(),
                 buildCombinedRawResponse(claimFormResponse, hospitalDocumentResponse, mergedResult)
         );
     }
 
-    protected ClaimOcrClientResponse extractStructuredDocumentData(
+    protected ClaimOcrDocumentResponse extractStructuredDocumentData(
             ClaimDocumentType documentType,
             List<ClaimOcrSourceDocument> documents
     ) {
@@ -155,7 +158,7 @@ public class GoogleAiStudioClaimOcrClient {
                     ClaimOcrExtractionResult.class
             );
 
-            return new ClaimOcrClientResponse(extractionResult, rawResponse);
+            return new ClaimOcrDocumentResponse(extractionResult, rawResponse);
         } catch (JsonProcessingException exception) {
             throw new FileStorageException("Unable to parse Google AI OCR response.", exception.getOriginalMessage());
         } catch (RestClientException exception) {
@@ -193,8 +196,8 @@ public class GoogleAiStudioClaimOcrClient {
     }
 
     private String buildCombinedRawResponse(
-            ClaimOcrClientResponse claimFormResponse,
-            ClaimOcrClientResponse hospitalDocumentResponse,
+            ClaimOcrDocumentResponse claimFormResponse,
+            ClaimOcrDocumentResponse hospitalDocumentResponse,
             ClaimOcrExtractionResult mergedResult
     ) {
         ObjectNode root = objectMapper.createObjectNode();
@@ -214,7 +217,7 @@ public class GoogleAiStudioClaimOcrClient {
     private void addDocumentResponse(
             ArrayNode documentResponses,
             ClaimDocumentType documentType,
-            ClaimOcrClientResponse documentResponse
+            ClaimOcrDocumentResponse documentResponse
     ) {
         if (documentResponse == null) {
             return;

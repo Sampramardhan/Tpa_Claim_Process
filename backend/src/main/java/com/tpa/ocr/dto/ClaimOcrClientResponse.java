@@ -1,7 +1,9 @@
 package com.tpa.ocr.dto;
 
 public record ClaimOcrClientResponse(
-        ClaimOcrExtractionResult extractionResult,
+        ClaimOcrExtractionResult mergedExtractionResult,
+        ClaimOcrExtractionResult claimFormExtractionResult,
+        ClaimOcrExtractionResult hospitalDocumentExtractionResult,
         String rawResponse
 ) {
 }

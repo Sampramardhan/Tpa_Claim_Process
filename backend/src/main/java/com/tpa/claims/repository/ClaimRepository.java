@@ -93,6 +93,23 @@ public interface ClaimRepository extends JpaRepository<Claim, UUID> {
             @Param("status") com.tpa.common.enums.ClaimStatus status
     );
 
+    @Query("""
+            SELECT c FROM Claim c
+            JOIN FETCH c.customer
+            JOIN FETCH c.customerPolicy cp
+            JOIN FETCH cp.customer
+            JOIN FETCH cp.policy p
+            JOIN FETCH p.carrier
+            LEFT JOIN FETCH c.extractedClaimData
+            WHERE c.customerPolicy.id = :customerPolicyId
+              AND c.id <> :claimId
+            ORDER BY c.submissionDate DESC, c.createdAt DESC
+            """)
+    List<Claim> findDuplicateCandidatesByCustomerPolicyId(
+            @Param("customerPolicyId") UUID customerPolicyId,
+            @Param("claimId") UUID claimId
+    );
+
     Optional<Claim> findByClaimNumber(String claimNumber);
 
     boolean existsByClaimNumber(String claimNumber);

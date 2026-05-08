@@ -8,7 +8,9 @@ public enum ClaimStage {
     CLIENT_REJECTED,
     CLIENT,
     FMG_REVIEW,
+    FMG_MANUAL_REVIEW,
     FMG,
+    CARRIER_REVIEW,
     CARRIER,
     COMPLETED
 }

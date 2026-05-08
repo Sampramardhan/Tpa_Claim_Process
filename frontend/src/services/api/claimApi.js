@@ -66,6 +66,43 @@ export async function rejectClientClaim(claimId, payload = {}) {
   return response.data.data;
 }
 
+export async function getFmgClaimsQueue() {
+  const response = await apiClient.get('/fmg/claims');
+  return response.data.data;
+}
+
+export async function getFmgClaim(claimId) {
+  const response = await apiClient.get(`/fmg/claims/${claimId}`);
+  return response.data.data;
+}
+
+export async function evaluateFmgClaim(claimId) {
+  const response = await apiClient.post(`/fmg/claims/${claimId}/evaluate`);
+  return response.data.data;
+}
+
+export async function confirmFmgDecision(claimId, payload) {
+  const response = await apiClient.post(`/fmg/claims/${claimId}/confirm`, payload);
+  return response.data.data;
+}
+
+// ── FMG Manual Review ───────────────────────────────────────────────
+
+export async function getFmgManualReviewQueue() {
+  const response = await apiClient.get('/fmg/claims/manual-review');
+  return response.data.data;
+}
+
+export async function getFmgManualReviewDetails(claimId) {
+  const response = await apiClient.get(`/fmg/claims/${claimId}/manual-review`);
+  return response.data.data;
+}
+
+export async function submitFmgManualReview(claimId, payload) {
+  const response = await apiClient.post(`/fmg/claims/${claimId}/manual-review`, payload);
+  return response.data.data;
+}
+
 function buildDocumentViewUrl(pathPrefix, claimId, documentId, token) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
   const url = `${baseUrl}${pathPrefix}/${claimId}/documents/${documentId}/view`;
@@ -78,4 +115,8 @@ export function getDocumentViewUrl(claimId, documentId, token) {
 
 export function getClientDocumentViewUrl(claimId, documentId, token) {
   return buildDocumentViewUrl('/client/claims', claimId, documentId, token);
+}
+
+export function getFmgDocumentViewUrl(claimId, documentId, token) {
+  return buildDocumentViewUrl('/fmg/claims', claimId, documentId, token);
 }

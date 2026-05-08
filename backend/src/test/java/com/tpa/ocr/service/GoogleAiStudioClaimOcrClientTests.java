@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.tpa.claims.enums.ClaimDocumentType;
 import com.tpa.config.GoogleAiProperties;
 import com.tpa.ocr.dto.ClaimOcrClientResponse;
+import com.tpa.ocr.dto.ClaimOcrDocumentResponse;
 import com.tpa.ocr.dto.ClaimOcrExtractionResult;
 import com.tpa.ocr.dto.ClaimOcrSourceDocument;
 import org.junit.jupiter.api.Test;
@@ -28,10 +29,10 @@ class GoogleAiStudioClaimOcrClientTests {
                 .findAndRegisterModules()
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-        Map<ClaimDocumentType, ClaimOcrClientResponse> stubResponses = new EnumMap<>(ClaimDocumentType.class);
+        Map<ClaimDocumentType, ClaimOcrDocumentResponse> stubResponses = new EnumMap<>(ClaimDocumentType.class);
         stubResponses.put(
                 ClaimDocumentType.CLAIM_FORM,
-                new ClaimOcrClientResponse(
+                new ClaimOcrDocumentResponse(
                         new ClaimOcrExtractionResult(
                                 "POL-555",
                                 "Neha Verma",
@@ -53,7 +54,7 @@ class GoogleAiStudioClaimOcrClientTests {
         );
         stubResponses.put(
                 ClaimDocumentType.HOSPITAL_DOCUMENT,
-                new ClaimOcrClientResponse(
+                new ClaimOcrDocumentResponse(
                         new ClaimOcrExtractionResult(
                                 null,
                                 null,
@@ -92,7 +93,7 @@ class GoogleAiStudioClaimOcrClientTests {
         assertEquals(1, client.processedDocuments().get(ClaimDocumentType.CLAIM_FORM).size());
         assertEquals(1, client.processedDocuments().get(ClaimDocumentType.HOSPITAL_DOCUMENT).size());
 
-        ClaimOcrExtractionResult mergedResult = response.extractionResult();
+        ClaimOcrExtractionResult mergedResult = response.mergedExtractionResult();
         assertEquals("POL-555", mergedResult.policyNumber());
         assertEquals("Neha Verma", mergedResult.customerName());
         assertEquals("Arjun Verma", mergedResult.patientName());
@@ -107,6 +108,8 @@ class GoogleAiStudioClaimOcrClientTests {
         assertEquals("INV-204", mergedResult.billNumber());
         assertEquals(LocalDate.of(2026, 2, 18), mergedResult.billDate());
         assertEquals(new BigDecimal("9800.00"), mergedResult.totalBillAmount());
+        assertEquals("Neha Verma", response.claimFormExtractionResult().customerName());
+        assertEquals("Metro Hospital", response.hospitalDocumentExtractionResult().hospitalName());
 
         JsonNode rawResponse = objectMapper.readTree(response.rawResponse());
         assertEquals(2, rawResponse.path("documentResponses").size());
@@ -133,7 +136,7 @@ class GoogleAiStudioClaimOcrClientTests {
 
     private static final class RecordingGoogleAiStudioClaimOcrClient extends GoogleAiStudioClaimOcrClient {
 
-        private final Map<ClaimDocumentType, ClaimOcrClientResponse> stubResponses;
+        private final Map<ClaimDocumentType, ClaimOcrDocumentResponse> stubResponses;
         private final List<ClaimDocumentType> processedDocumentTypes = new ArrayList<>();
         private final Map<ClaimDocumentType, List<ClaimOcrSourceDocument>> processedDocuments =
                 new EnumMap<>(ClaimDocumentType.class);
@@ -141,14 +144,14 @@ class GoogleAiStudioClaimOcrClientTests {
         private RecordingGoogleAiStudioClaimOcrClient(
                 GoogleAiProperties googleAiProperties,
                 ObjectMapper objectMapper,
-                Map<ClaimDocumentType, ClaimOcrClientResponse> stubResponses
+                Map<ClaimDocumentType, ClaimOcrDocumentResponse> stubResponses
         ) {
             super(googleAiProperties, objectMapper);
             this.stubResponses = stubResponses;
         }
 
         @Override
-        protected ClaimOcrClientResponse extractStructuredDocumentData(
+        protected ClaimOcrDocumentResponse extractStructuredDocumentData(
                 ClaimDocumentType documentType,
                 List<ClaimOcrSourceDocument> documents
         ) {

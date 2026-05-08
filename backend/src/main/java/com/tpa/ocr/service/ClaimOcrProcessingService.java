@@ -70,11 +70,11 @@ public class ClaimOcrProcessingService {
             OcrContext ocrContext = transactionTemplate.execute(status -> loadOcrContext(claimId));
             ClaimOcrClientResponse clientResponse = googleAiStudioClaimOcrClient.extractClaimData(ocrContext.documents());
             rawResponse = clientResponse.rawResponse();
-            ClaimOcrExtractionResult extractionResult = clientResponse.extractionResult();
+            ClaimOcrExtractionResult mergedExtractionResult = clientResponse.mergedExtractionResult();
             String responseSnapshot = rawResponse;
 
             transactionTemplate.executeWithoutResult(status ->
-                    persistSuccess(claimId, extractionResult, responseSnapshot)
+                    persistSuccess(claimId, clientResponse, mergedExtractionResult, responseSnapshot)
             );
         } catch (RuntimeException exception) {
             LOGGER.warn("OCR processing failed for claim {}: {}", claimId, exception.getMessage());
@@ -115,7 +115,12 @@ public class ClaimOcrProcessingService {
         );
     }
 
-    private void persistSuccess(UUID claimId, ClaimOcrExtractionResult result, String rawResponse) {
+    private void persistSuccess(
+            UUID claimId,
+            ClaimOcrClientResponse clientResponse,
+            ClaimOcrExtractionResult result,
+            String rawResponse
+    ) {
         ExtractedClaimData extractedClaimData = extractedClaimDataRepository.findByClaim_Id(claimId)
                 .orElseThrow(() -> new ResourceNotFoundException("Extracted claim data row not found."));
 
@@ -137,6 +142,7 @@ public class ClaimOcrProcessingService {
         extractedClaimData.setBillNumber(result.billNumber());
         extractedClaimData.setBillDate(result.billDate());
         extractedClaimData.setTotalBillAmount(result.totalBillAmount());
+        persistDocumentSpecificFields(extractedClaimData, clientResponse);
         extractedClaimDataRepository.save(extractedClaimData);
     }
 
@@ -149,6 +155,82 @@ public class ClaimOcrProcessingService {
         extractedClaimData.setOcrFailureReason(failureReason);
         extractedClaimData.setOcrRawResponse(rawResponse);
         extractedClaimDataRepository.save(extractedClaimData);
+    }
+
+    private void persistDocumentSpecificFields(
+            ExtractedClaimData extractedClaimData,
+            ClaimOcrClientResponse clientResponse
+    ) {
+        ClaimOcrExtractionResult claimFormResult = clientResponse.claimFormExtractionResult();
+        ClaimOcrExtractionResult hospitalDocumentResult = clientResponse.hospitalDocumentExtractionResult();
+
+        extractedClaimData.setClaimFormPolicyNumber(value(claimFormResult, ClaimOcrExtractionResult::policyNumber));
+        extractedClaimData.setClaimFormCustomerName(value(claimFormResult, ClaimOcrExtractionResult::customerName));
+        extractedClaimData.setClaimFormPatientName(value(claimFormResult, ClaimOcrExtractionResult::patientName));
+        extractedClaimData.setClaimFormCarrierName(value(claimFormResult, ClaimOcrExtractionResult::carrierName));
+        extractedClaimData.setClaimFormPolicyName(value(claimFormResult, ClaimOcrExtractionResult::policyName));
+        extractedClaimData.setClaimFormHospitalName(value(claimFormResult, ClaimOcrExtractionResult::hospitalName));
+        extractedClaimData.setClaimFormAdmissionDate(value(claimFormResult, ClaimOcrExtractionResult::admissionDate));
+        extractedClaimData.setClaimFormDischargeDate(value(claimFormResult, ClaimOcrExtractionResult::dischargeDate));
+        extractedClaimData.setClaimFormClaimedAmount(value(claimFormResult, ClaimOcrExtractionResult::claimedAmount));
+        extractedClaimData.setClaimFormClaimType(value(claimFormResult, ClaimOcrExtractionResult::claimType));
+        extractedClaimData.setClaimFormDiagnosis(value(claimFormResult, ClaimOcrExtractionResult::diagnosis));
+        extractedClaimData.setClaimFormBillNumber(value(claimFormResult, ClaimOcrExtractionResult::billNumber));
+        extractedClaimData.setClaimFormBillDate(value(claimFormResult, ClaimOcrExtractionResult::billDate));
+        extractedClaimData.setClaimFormTotalBillAmount(value(claimFormResult, ClaimOcrExtractionResult::totalBillAmount));
+
+        extractedClaimData.setHospitalDocumentPolicyNumber(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::policyNumber)
+        );
+        extractedClaimData.setHospitalDocumentCustomerName(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::customerName)
+        );
+        extractedClaimData.setHospitalDocumentPatientName(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::patientName)
+        );
+        extractedClaimData.setHospitalDocumentCarrierName(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::carrierName)
+        );
+        extractedClaimData.setHospitalDocumentPolicyName(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::policyName)
+        );
+        extractedClaimData.setHospitalDocumentHospitalName(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::hospitalName)
+        );
+        extractedClaimData.setHospitalDocumentAdmissionDate(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::admissionDate)
+        );
+        extractedClaimData.setHospitalDocumentDischargeDate(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::dischargeDate)
+        );
+        extractedClaimData.setHospitalDocumentClaimedAmount(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::claimedAmount)
+        );
+        extractedClaimData.setHospitalDocumentClaimType(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::claimType)
+        );
+        extractedClaimData.setHospitalDocumentDiagnosis(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::diagnosis)
+        );
+        extractedClaimData.setHospitalDocumentBillNumber(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::billNumber)
+        );
+        extractedClaimData.setHospitalDocumentBillDate(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::billDate)
+        );
+        extractedClaimData.setHospitalDocumentTotalBillAmount(
+                value(hospitalDocumentResult, ClaimOcrExtractionResult::totalBillAmount)
+        );
+    }
+
+    private <T> T value(ClaimOcrExtractionResult result, ValueExtractor<T> extractor) {
+        return result == null ? null : extractor.extract(result);
+    }
+
+    @FunctionalInterface
+    private interface ValueExtractor<T> {
+
+        T extract(ClaimOcrExtractionResult result);
     }
 
     private record OcrContext(
