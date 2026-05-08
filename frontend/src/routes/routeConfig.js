@@ -25,7 +25,7 @@ export const navigationRoutes = [
   },
   {
     path: '/client',
-    label: 'Policy Verification',
+    label: 'Client Review',
     icon: ClipboardList,
     end: true,
     roles: [USER_ROLES.CLIENT],

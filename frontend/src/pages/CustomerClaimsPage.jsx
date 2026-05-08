@@ -5,6 +5,8 @@ import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import PageShell from '../components/ui/PageShell.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
+import DocumentViewer from '../components/claims/DocumentViewer.jsx';
+import TimelineShell from '../components/timeline/TimelineShell.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { createClaim, getDocumentViewUrl, getMyClaim, getMyClaims, submitClaim, updateClaimExtractedData } from '../services/api/claimApi.js';
 import { getMyPolicies } from '../services/api/policyApi.js';
@@ -24,6 +26,9 @@ const STATUS_VARIANTS = {
 
 const STAGE_VARIANTS = {
   DRAFT: 'info',
+  CLIENT_REVIEW: 'pending',
+  CLIENT_REJECTED: 'expired',
+  FMG_REVIEW: 'active',
   CUSTOMER_SUBMITTED: 'pending',
   CUSTOMER: 'info',
   CLIENT: 'pending',
@@ -678,7 +683,10 @@ function CustomerClaimsPage() {
 
                 <div className="relative flex-1 w-full bg-slate-800">
                   {selectedDocumentId ? (
-                    <DocumentViewer claimId={activeClaimId} documentId={selectedDocumentId} token={token} />
+                    <DocumentViewer
+                      url={getDocumentViewUrl(activeClaimId, selectedDocumentId, token)}
+                      title="Claim Document Preview"
+                    />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center p-6 text-center text-slate-500">
                       <FileSearch className="h-12 w-12 opacity-20 text-white" />
@@ -797,6 +805,15 @@ function CustomerClaimsPage() {
                           <EditableField label="Diagnosis" type="textarea" value={extractedForm.diagnosis} onChange={(value) => handleExtractedFieldChange('diagnosis', value)} disabled={activeClaimLocked} />
                         </div>
                       </div>
+
+                      {activeClaimDetails?.timeline?.length ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 border-l-4 border-brand-500 pl-3">
+                            <h5 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Claim Timeline</h5>
+                          </div>
+                          <TimelineShell entries={activeClaimDetails.timeline} />
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="sticky bottom-0 -mx-6 -mb-6 mt-10 border-t border-slate-100 bg-slate-50 p-6 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
@@ -910,33 +927,6 @@ function EditableField({ label, value, onChange, type = 'text', disabled = false
         />
       )}
     </label>
-  );
-}
-
-function DocumentViewer({ claimId, documentId, token }) {
-  const [error, setError] = useState(false);
-  const url = getDocumentViewUrl(claimId, documentId, token);
-
-  useEffect(() => {
-    setError(false);
-  }, [url]);
-
-  return (
-    <div className="h-full w-full bg-white">
-      {error ? (
-        <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-          <AlertCircle className="h-10 w-10 text-red-400" />
-          <p className="mt-2 text-sm text-red-600">Failed to load document preview.</p>
-        </div>
-      ) : (
-        <iframe
-          src={url}
-          title="Document Preview"
-          className="h-full w-full border-0"
-          onError={() => setError(true)}
-        />
-      )}
-    </div>
   );
 }
 

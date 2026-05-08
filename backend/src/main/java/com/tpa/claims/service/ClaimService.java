@@ -25,6 +25,8 @@ import com.tpa.ocr.service.ClaimOcrRequestedEvent;
 import com.tpa.policies.entity.CustomerPolicy;
 import com.tpa.policies.repository.CustomerPolicyRepository;
 import com.tpa.security.TpaUserPrincipal;
+import com.tpa.timeline.dto.TimelineEntryDto;
+import com.tpa.timeline.service.ClaimTimelineService;
 import com.tpa.utils.DateTimeUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,8 @@ public class ClaimService {
     private final ClaimNumberGenerator claimNumberGenerator;
     private final ClaimFileStorageService claimFileStorageService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final ClaimResponseMapper claimResponseMapper;
+    private final ClaimTimelineService claimTimelineService;
 
     public ClaimService(
             ClaimRepository claimRepository,
@@ -59,7 +63,9 @@ public class ClaimService {
             CustomerPolicyRepository customerPolicyRepository,
             ClaimNumberGenerator claimNumberGenerator,
             ClaimFileStorageService claimFileStorageService,
-            ApplicationEventPublisher applicationEventPublisher
+            ApplicationEventPublisher applicationEventPublisher,
+            ClaimResponseMapper claimResponseMapper,
+            ClaimTimelineService claimTimelineService
     ) {
         this.claimRepository = claimRepository;
         this.claimDocumentRepository = claimDocumentRepository;
@@ -69,6 +75,8 @@ public class ClaimService {
         this.claimNumberGenerator = claimNumberGenerator;
         this.claimFileStorageService = claimFileStorageService;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.claimResponseMapper = claimResponseMapper;
+        this.claimTimelineService = claimTimelineService;
     }
 
     @Transactional
@@ -136,16 +144,22 @@ public class ClaimService {
         );
         extractedClaimDataRepository.flush();
         savedClaim.setExtractedClaimData(extractedClaimData);
+        claimTimelineService.record(
+                savedClaim,
+                ClaimStage.DRAFT,
+                ClaimStatus.DRAFT,
+                "Claim draft created and required documents uploaded."
+        );
 
         applicationEventPublisher.publishEvent(new ClaimOcrRequestedEvent(savedClaim.getId()));
-        return toClaimResponse(savedClaim);
+        return claimResponseMapper.toClaimResponse(savedClaim);
     }
 
     @Transactional(readOnly = true)
     public List<ClaimResponse> getMyClaims(TpaUserPrincipal principal) {
         Customer customer = resolveCustomer(principal.getId());
         return claimRepository.findAllByCustomerIdWithPolicyDetails(customer.getId()).stream()
-                .map(this::toClaimResponse)
+                .map(claimResponseMapper::toClaimResponse)
                 .toList();
     }
 
@@ -158,14 +172,21 @@ public class ClaimService {
 
         List<ClaimDocumentResponse> documents = claimDocumentRepository.findAllByClaim_IdOrderByUploadedAtAsc(claimId)
                 .stream()
-                .map(this::toClaimDocumentResponse)
+                .map(claimResponseMapper::toClaimDocumentResponse)
                 .toList();
 
         ExtractedClaimDataResponse extractedData = extractedClaimDataRepository.findByClaim_Id(claimId)
-                .map(this::toExtractedClaimDataResponse)
+                .map(claimResponseMapper::toExtractedClaimDataResponse)
                 .orElse(null);
 
-        return new ClaimDetailsResponse(toClaimResponse(claim), documents, extractedData);
+        List<TimelineEntryDto> timeline = claimTimelineService.getClaimTimeline(claimId);
+
+        return new ClaimDetailsResponse(
+                claimResponseMapper.toClaimResponse(claim),
+                documents,
+                extractedData,
+                timeline
+        );
     }
 
     @Transactional
@@ -185,22 +206,28 @@ public class ClaimService {
         }
 
         claim.setStatus(ClaimStatus.SUBMITTED);
-        claim.setStage(ClaimStage.CUSTOMER_SUBMITTED);
+        claim.setStage(ClaimStage.CLIENT_REVIEW);
         claim.setSubmissionDate(DateTimeUtils.nowUtc());
         claim.setUpdatedBy(principal.getEmail());
 
         Claim savedClaim = claimRepository.save(claim);
         savedClaim.setExtractedClaimData(extractedClaimData);
-        return toClaimResponse(savedClaim);
+        claimTimelineService.record(
+                savedClaim,
+                ClaimStage.CLIENT_REVIEW,
+                ClaimStatus.SUBMITTED,
+                "Customer submitted the claim for client-side validation."
+        );
+        return claimResponseMapper.toClaimResponse(savedClaim);
     }
 
     @Transactional(readOnly = true)
     public List<ClaimResponse> getClientReviewQueue() {
         return claimRepository.findAllByStageAndStatusWithDetails(
-                        ClaimStage.CUSTOMER_SUBMITTED,
+                        ClaimStage.CLIENT_REVIEW,
                         ClaimStatus.SUBMITTED
                 ).stream()
-                .map(this::toClaimResponse)
+                .map(claimResponseMapper::toClaimResponse)
                 .toList();
     }
 
@@ -236,7 +263,7 @@ public class ClaimService {
         extractedClaimData.setTotalBillAmount(request.totalBillAmount());
 
         ExtractedClaimData savedData = extractedClaimDataRepository.save(extractedClaimData);
-        return toExtractedClaimDataResponse(savedData);
+        return claimResponseMapper.toExtractedClaimDataResponse(savedData);
     }
 
     @Transactional(readOnly = true)
@@ -277,26 +304,6 @@ public class ClaimService {
         return ocrStatus == OcrStatus.COMPLETED || ocrStatus == OcrStatus.FAILED;
     }
 
-    private ClaimResponse toClaimResponse(Claim claim) {
-        return new ClaimResponse(
-                claim.getId(),
-                claim.getClaimNumber(),
-                claim.getCustomer().getId(),
-                claim.getCustomer().getFullName(),
-                claim.getCustomer().getEmail(),
-                claim.getCustomerPolicy().getId(),
-                claim.getCustomerPolicy().getUniquePolicyNumber(),
-                claim.getCustomerPolicy().getPolicy().getPolicyName(),
-                claim.getCustomerPolicy().getPolicy().getCarrier().getCarrierName(),
-                claim.getExtractedClaimData() == null ? null : claim.getExtractedClaimData().getOcrStatus(),
-                claim.getStatus(),
-                claim.getStage(),
-                claim.getSubmissionDate(),
-                claim.getCreatedAt(),
-                claim.getUpdatedAt()
-        );
-    }
-
     private ClaimDocument toClaimDocument(Claim claim, StoredClaimFile storedFile) {
         return ClaimDocument.builder()
                 .claim(claim)
@@ -308,39 +315,4 @@ public class ClaimService {
                 .build();
     }
 
-    private ClaimDocumentResponse toClaimDocumentResponse(ClaimDocument document) {
-        return new ClaimDocumentResponse(
-                document.getId(),
-                document.getClaim().getId(),
-                document.getDocumentType(),
-                document.getOriginalFileName(),
-                document.getStoredFileName(),
-                document.getStoredFilePath(),
-                document.getUploadedAt()
-        );
-    }
-
-    private ExtractedClaimDataResponse toExtractedClaimDataResponse(ExtractedClaimData data) {
-        return new ExtractedClaimDataResponse(
-                data.getId(),
-                data.getClaim().getId(),
-                data.getOcrStatus(),
-                data.getOcrProcessedAt(),
-                data.getOcrFailureReason(),
-                data.getPolicyNumber(),
-                data.getCustomerName(),
-                data.getPatientName(),
-                data.getCarrierName(),
-                data.getPolicyName(),
-                data.getHospitalName(),
-                data.getAdmissionDate(),
-                data.getDischargeDate(),
-                data.getClaimType(),
-                data.getDiagnosis(),
-                data.getBillNumber(),
-                data.getBillDate(),
-                data.getTotalBillAmount(),
-                data.getClaimedAmount()
-        );
-    }
 }

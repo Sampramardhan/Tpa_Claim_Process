@@ -46,8 +46,36 @@ export async function getClientClaimsQueue() {
   return response.data.data;
 }
 
-export function getDocumentViewUrl(claimId, documentId, token) {
+export async function getClientClaim(claimId) {
+  const response = await apiClient.get(`/client/claims/${claimId}`);
+  return response.data.data;
+}
+
+export async function validateClientClaim(claimId) {
+  const response = await apiClient.post(`/client/claims/${claimId}/validate`);
+  return response.data.data;
+}
+
+export async function approveClientClaim(claimId) {
+  const response = await apiClient.post(`/client/claims/${claimId}/approve`);
+  return response.data.data;
+}
+
+export async function rejectClientClaim(claimId, payload = {}) {
+  const response = await apiClient.post(`/client/claims/${claimId}/reject`, payload);
+  return response.data.data;
+}
+
+function buildDocumentViewUrl(pathPrefix, claimId, documentId, token) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
-  const url = `${baseUrl}/customer/claims/${claimId}/documents/${documentId}/view`;
+  const url = `${baseUrl}${pathPrefix}/${claimId}/documents/${documentId}/view`;
   return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}
+
+export function getDocumentViewUrl(claimId, documentId, token) {
+  return buildDocumentViewUrl('/customer/claims', claimId, documentId, token);
+}
+
+export function getClientDocumentViewUrl(claimId, documentId, token) {
+  return buildDocumentViewUrl('/client/claims', claimId, documentId, token);
 }

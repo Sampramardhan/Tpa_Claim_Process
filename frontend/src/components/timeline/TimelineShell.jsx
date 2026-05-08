@@ -1,5 +1,21 @@
 import StatusBadge from '../common/StatusBadge.jsx';
 
+function formatDateTime(value) {
+  if (!value) return 'Timestamp pending';
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+function humanize(value) {
+  return value
+    ?.toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function TimelineShell({ entries = [] }) {
   return (
     <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
@@ -23,10 +39,10 @@ function TimelineShell({ entries = [] }) {
               </span>
               <div className="min-w-0 flex-1 border-b border-slate-100 pb-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-ink-900">{entry.stage || 'Pending stage'}</p>
+                  <p className="text-sm font-semibold text-ink-900">{humanize(entry.stage) || 'Pending stage'}</p>
                   <StatusBadge status={entry.status} />
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{entry.timestamp || 'Timestamp pending'}</p>
+                <p className="mt-1 text-xs text-slate-500">{formatDateTime(entry.timestamp)}</p>
                 {entry.description ? <p className="mt-2 text-sm text-slate-600">{entry.description}</p> : null}
               </div>
             </li>
