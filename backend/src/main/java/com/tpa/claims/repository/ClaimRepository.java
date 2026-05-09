@@ -110,6 +110,39 @@ public interface ClaimRepository extends JpaRepository<Claim, UUID> {
             @Param("claimId") UUID claimId
     );
 
+    @Query("""
+            SELECT c FROM Claim c
+            JOIN FETCH c.customer
+            JOIN FETCH c.customerPolicy cp
+            JOIN FETCH cp.customer
+            JOIN FETCH cp.policy p
+            JOIN FETCH p.carrier
+            LEFT JOIN FETCH c.extractedClaimData
+            WHERE c.stage IN :stages
+            ORDER BY c.submissionDate DESC, c.createdAt DESC
+            """)
+    List<Claim> findAllByStagesInWithDetails(
+            @Param("stages") Collection<com.tpa.common.enums.ClaimStage> stages
+    );
+
+    @Query("""
+            SELECT c FROM Claim c
+            JOIN FETCH c.customer
+            JOIN FETCH c.customerPolicy cp
+            JOIN FETCH cp.customer
+            JOIN FETCH cp.policy p
+            JOIN FETCH p.carrier
+            LEFT JOIN FETCH c.extractedClaimData
+            WHERE c.stage = com.tpa.common.enums.ClaimStage.COMPLETED
+              AND EXISTS (
+                  SELECT 1 FROM TimelineEntry t 
+                  WHERE t.claim = c 
+                    AND t.stage = com.tpa.common.enums.ClaimStage.CARRIER_REVIEW
+              )
+            ORDER BY c.submissionDate DESC, c.createdAt DESC
+            """)
+    List<Claim> findCarrierHistory();
+
     Optional<Claim> findByClaimNumber(String claimNumber);
 
     boolean existsByClaimNumber(String claimNumber);

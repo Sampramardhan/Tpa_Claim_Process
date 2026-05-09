@@ -13,6 +13,7 @@ import { POLICY_TYPES } from '../constants/appConstants.js';
 import { createPolicy, getCarrierPolicies, togglePolicyActive } from '../services/api/policyApi.js';
 import {
   getCarrierClaimsQueue,
+  getCarrierHistoryQueue,
   getCarrierClaim,
   approveCarrierPayment,
   rejectCarrierClaim,
@@ -80,7 +81,9 @@ function CarrierPage() {
 
   // Claims State
   const [claimQueue, setClaimQueue] = useState([]);
+  const [historyQueue, setHistoryQueue] = useState([]);
   const [loadingClaims, setLoadingClaims] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [selectedClaimId, setSelectedClaimId] = useState(null);
   const [claimDetails, setClaimDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -115,10 +118,23 @@ function CarrierPage() {
     }
   }, []);
 
+  const loadHistoryQueue = useCallback(async () => {
+    try {
+      setLoadingHistory(true);
+      const data = await getCarrierHistoryQueue();
+      setHistoryQueue(data || []);
+    } catch {
+      setHistoryQueue([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadPolicies();
     loadClaimsQueue();
-  }, [loadPolicies, loadClaimsQueue]);
+    loadHistoryQueue();
+  }, [loadPolicies, loadClaimsQueue, loadHistoryQueue]);
 
   // Policy Handlers
   const handlePolicyChange = (e) => {
@@ -283,6 +299,14 @@ function CarrierPage() {
             Claims Review
           </button>
           <button
+            onClick={() => setActiveTab('history')}
+            className={`border-b-2 py-4 text-sm font-semibold transition ${
+              activeTab === 'history' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Settlement History
+          </button>
+          <button
             onClick={() => setActiveTab('policies')}
             className={`border-b-2 py-4 text-sm font-semibold transition ${
               activeTab === 'policies' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -321,6 +345,34 @@ function CarrierPage() {
               </div>
             ) : (
               <DataTable columns={policyColumns} data={policies} emptyMessage="No policies created yet." />
+            )}
+          </section>
+        ) : activeTab === 'history' ? (
+          <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-ink-900">Settlement History</h3>
+                <p className="mt-1 text-sm text-slate-500">History of claims processed for settlement (Paid or Rejected).</p>
+              </div>
+              <button
+                type="button"
+                onClick={loadHistoryQueue}
+                className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${loadingHistory ? 'animate-spin' : ''}`} /> Refresh History
+              </button>
+            </div>
+            {loadingHistory ? (
+              <div className="flex h-32 items-center justify-center">
+                <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              <DataTable
+                columns={claimColumns}
+                data={historyQueue}
+                onRowClick={(c) => openClaimReview(c.id)}
+                emptyMessage="No processed historical claims found."
+              />
             )}
           </section>
         ) : (

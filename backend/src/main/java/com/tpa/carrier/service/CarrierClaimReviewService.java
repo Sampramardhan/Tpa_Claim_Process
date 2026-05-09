@@ -72,6 +72,13 @@ public class CarrierClaimReviewService {
     }
 
     @Transactional(readOnly = true)
+    public List<ClaimResponse> getHistoryQueue() {
+        return claimRepository.findCarrierHistory().stream()
+                .map(claimResponseMapper::toClaimResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public CarrierClaimReviewDetailsResponse getClaimDetails(UUID claimId) {
         Claim claim = loadClaim(claimId);
         return buildReviewDetails(claim);

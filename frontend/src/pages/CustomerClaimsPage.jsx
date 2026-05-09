@@ -143,6 +143,11 @@ function CustomerClaimsPage() {
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
   const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
   const [submitConfirmationError, setSubmitConfirmationError] = useState('');
+  const [activeTab, setActiveTab] = useState('active');
+
+  const activeClaimsList = claims.filter(c => c.status !== 'PAID' && c.status !== 'REJECTED');
+  const historyClaimsList = claims.filter(c => c.status === 'PAID' || c.status === 'REJECTED');
+  const displayClaims = activeTab === 'active' ? activeClaimsList : historyClaimsList;
 
   const activePolicies = policies.filter((policy) => policy.active);
   const draftClaims = claims.filter((claim) => claim.status === 'DRAFT').length;
@@ -472,21 +477,44 @@ function CustomerClaimsPage() {
           </div>
         ) : null}
 
+        <div className="mt-6 flex gap-1 border-b border-slate-200">
+          <button
+            onClick={() => setActiveTab('active')}
+            className={`px-4 py-2.5 text-sm font-medium transition ${
+              activeTab === 'active'
+                ? 'border-b-2 border-brand-600 text-brand-700'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Active Claims
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2.5 text-sm font-medium transition ${
+              activeTab === 'history'
+                ? 'border-b-2 border-brand-600 text-brand-700'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            History
+          </button>
+        </div>
+
         {loading ? (
           <div className="mt-8 flex justify-center">
             <LoadingSpinner label="Loading claims" />
           </div>
-        ) : claims.length === 0 ? (
+        ) : displayClaims.length === 0 ? (
           <div className="mt-6 rounded-md border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <FileText className="mx-auto h-8 w-8 text-slate-400" aria-hidden="true" />
-            <h4 className="mt-3 text-base font-semibold text-ink-900">No claims yet</h4>
+            <h4 className="mt-3 text-base font-semibold text-ink-900">No claims found</h4>
             <p className="mt-2 text-sm text-slate-500">
-              Start a new claim by selecting one of your active policies and uploading the required documents.
+              {activeTab === 'active' ? 'Start a new claim by selecting one of your active policies and uploading the required documents.' : 'You have no historical claims yet.'}
             </p>
           </div>
         ) : (
           <div className="mt-6 grid gap-4">
-            {claims.map((claim) => (
+            {displayClaims.map((claim) => (
               <article key={claim.id} className="rounded-lg border border-slate-200 bg-slate-50 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>

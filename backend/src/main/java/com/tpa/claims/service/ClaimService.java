@@ -218,7 +218,12 @@ public class ClaimService {
                 ClaimStatus.SUBMITTED,
                 "Customer submitted the claim for client-side validation."
         );
-        return claimResponseMapper.toClaimResponse(savedClaim);
+
+        applicationEventPublisher.publishEvent(new ClaimSubmittedEvent(savedClaim.getId(), principal.getEmail()));
+
+        // Reload the claim as the event listener may have updated it automatically
+        Claim finalClaim = claimRepository.findById(savedClaim.getId()).orElse(savedClaim);
+        return claimResponseMapper.toClaimResponse(finalClaim);
     }
 
     @Transactional(readOnly = true)

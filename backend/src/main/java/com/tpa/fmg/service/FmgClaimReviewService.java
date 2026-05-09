@@ -103,6 +103,18 @@ public class FmgClaimReviewService {
     }
 
     @Transactional(readOnly = true)
+    public List<ClaimResponse> getHistoryQueue() {
+        return claimRepository.findAllByStagesInWithDetails(
+                        List.of(
+                                ClaimStage.CARRIER_REVIEW,
+                                ClaimStage.COMPLETED
+                        )
+                ).stream()
+                .map(claimResponseMapper::toClaimResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public FmgClaimReviewDetailsResponse getClaimDetails(UUID claimId) {
         Claim claim = loadClaim(claimId);
         ClientClaimValidation validation = loadForwardedClientValidation(claimId);

@@ -35,6 +35,11 @@ public class CarrierClaimController {
         return ApiResponse.success("Carrier review queue loaded.", carrierClaimReviewService.getReviewQueue());
     }
 
+    @GetMapping("/history")
+    public ApiResponse<List<ClaimResponse>> getHistoryQueue() {
+        return ApiResponse.success("Carrier settlement history loaded.", carrierClaimReviewService.getHistoryQueue());
+    }
+
     @GetMapping("/{claimId}")
     public ApiResponse<CarrierClaimReviewDetailsResponse> getClaimDetails(@PathVariable UUID claimId) {
         return ApiResponse.success("Carrier claim review details loaded.", carrierClaimReviewService.getClaimDetails(claimId));

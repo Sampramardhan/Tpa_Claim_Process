@@ -36,6 +36,11 @@ public class FmgClaimController {
         return ApiResponse.success("FMG review queue loaded.", fmgClaimReviewService.getReviewQueue());
     }
 
+    @GetMapping("/history")
+    public ApiResponse<List<ClaimResponse>> getHistoryQueue() {
+        return ApiResponse.success("FMG processed history loaded.", fmgClaimReviewService.getHistoryQueue());
+    }
+
     @GetMapping("/{claimId}")
     public ApiResponse<FmgClaimReviewDetailsResponse> getClaimDetails(@PathVariable UUID claimId) {
         return ApiResponse.success("FMG claim review details loaded.", fmgClaimReviewService.getClaimDetails(claimId));

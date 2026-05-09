@@ -46,28 +46,23 @@ export async function getClientClaimsQueue() {
   return response.data.data;
 }
 
+export async function getClientHistoryQueue() {
+  const response = await apiClient.get('/client/claims/history');
+  return response.data.data;
+}
+
 export async function getClientClaim(claimId) {
   const response = await apiClient.get(`/client/claims/${claimId}`);
   return response.data.data;
 }
 
-export async function validateClientClaim(claimId) {
-  const response = await apiClient.post(`/client/claims/${claimId}/validate`);
-  return response.data.data;
-}
-
-export async function approveClientClaim(claimId) {
-  const response = await apiClient.post(`/client/claims/${claimId}/approve`);
-  return response.data.data;
-}
-
-export async function rejectClientClaim(claimId, payload = {}) {
-  const response = await apiClient.post(`/client/claims/${claimId}/reject`, payload);
-  return response.data.data;
-}
-
 export async function getFmgClaimsQueue() {
   const response = await apiClient.get('/fmg/claims');
+  return response.data.data;
+}
+
+export async function getFmgHistoryQueue() {
+  const response = await apiClient.get('/fmg/claims/history');
   return response.data.data;
 }
 
@@ -107,6 +102,11 @@ export async function submitFmgManualReview(claimId, payload) {
 
 export async function getCarrierClaimsQueue() {
   const response = await apiClient.get('/carrier/claims');
+  return response.data.data;
+}
+
+export async function getCarrierHistoryQueue() {
+  const response = await apiClient.get('/carrier/claims/history');
   return response.data.data;
 }
 

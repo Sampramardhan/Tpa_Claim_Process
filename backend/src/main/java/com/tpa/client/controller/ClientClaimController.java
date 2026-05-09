@@ -36,42 +36,17 @@ public class ClientClaimController {
         return ApiResponse.success("Client review queue loaded.", clientClaimReviewService.getReviewQueue());
     }
 
+    @GetMapping("/history")
+    public ApiResponse<List<ClaimResponse>> getClientHistoryQueue() {
+        return ApiResponse.success("Client processed history loaded.", clientClaimReviewService.getHistoryQueue());
+    }
+
     @GetMapping("/{claimId}")
     public ApiResponse<ClientClaimReviewDetailsResponse> getClaimDetails(@PathVariable UUID claimId) {
         return ApiResponse.success("Claim review details loaded.", clientClaimReviewService.getClaimDetails(claimId));
     }
 
-    @PostMapping("/{claimId}/validate")
-    public ApiResponse<ClientClaimValidationResponse> validateClaim(
-            @PathVariable UUID claimId,
-            @AuthenticationPrincipal TpaUserPrincipal principal
-    ) {
-        return ApiResponse.success("Client validation completed.", clientClaimReviewService.validateClaim(claimId, principal));
-    }
-
-    @PostMapping("/{claimId}/approve")
-    public ApiResponse<ClientClaimReviewDetailsResponse> approveClaim(
-            @PathVariable UUID claimId,
-            @AuthenticationPrincipal TpaUserPrincipal principal
-    ) {
-        ClientClaimReviewDetailsResponse response = clientClaimReviewService.approveClaim(claimId, principal);
-        String message = response.claim().stage() == com.tpa.common.enums.ClaimStage.CLIENT_REJECTED
-                ? "Claim failed validation and was rejected."
-                : "Claim validated successfully and forwarded to FMG.";
-        return ApiResponse.success(message, response);
-    }
-
-    @PostMapping("/{claimId}/reject")
-    public ApiResponse<ClientClaimReviewDetailsResponse> rejectClaim(
-            @PathVariable UUID claimId,
-            @RequestBody(required = false) ClientClaimRejectRequest request,
-            @AuthenticationPrincipal TpaUserPrincipal principal
-    ) {
-        return ApiResponse.success(
-                "Claim rejected successfully.",
-                clientClaimReviewService.rejectClaim(claimId, request, principal)
-        );
-    }
+    // Endpoints removed for automatic client review
 
     @GetMapping("/{claimId}/documents/{documentId}/view")
     public ResponseEntity<byte[]> viewDocument(

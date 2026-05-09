@@ -18,12 +18,10 @@ import PageShell from '../components/ui/PageShell.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import {
-  approveClientClaim,
   getClientClaim,
   getClientClaimsQueue,
+  getClientHistoryQueue,
   getClientDocumentViewUrl,
-  rejectClientClaim,
-  validateClientClaim,
 } from '../services/api/claimApi.js';
 import { getAllCustomerPolicies, searchPolicies, verifyPolicy } from '../services/api/policyApi.js';
 
@@ -72,16 +70,17 @@ function extractErrorMessage(error, fallback = 'Unable to complete this action r
   return error?.response?.data?.message || fallback;
 }
 
-function isPendingClientReview(claim) {
-  return claim?.status === 'SUBMITTED' && (claim?.stage === 'CLIENT_REVIEW' || claim?.stage === 'CUSTOMER_SUBMITTED');
-}
+
 
 function ClientPage() {
   const { user, token } = useAuth();
   const [records, setRecords] = useState([]);
   const [claimQueue, setClaimQueue] = useState([]);
+  const [historyQueue, setHistoryQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [claimQueueLoading, setClaimQueueLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -94,12 +93,9 @@ function ClientPage() {
   const [activeClaimId, setActiveClaimId] = useState(null);
   const [activeClaimDetails, setActiveClaimDetails] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
-  const [validationLoading, setValidationLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState('');
   const [reviewError, setReviewError] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState('');
   const [selectedDocumentId, setSelectedDocumentId] = useState(null);
-  const [rejectionReason, setRejectionReason] = useState('');
 
   const loadAllPolicies = useCallback(async () => {
     try {
@@ -122,6 +118,18 @@ function ClientPage() {
       setClaimQueue([]);
     } finally {
       setClaimQueueLoading(false);
+    }
+  }, []);
+
+  const loadHistoryQueue = useCallback(async () => {
+    try {
+      setHistoryLoading(true);
+      const data = await getClientHistoryQueue();
+      setHistoryQueue(data || []);
+    } catch {
+      setHistoryQueue([]);
+    } finally {
+      setHistoryLoading(false);
     }
   }, []);
 
@@ -150,29 +158,13 @@ function ClientPage() {
     }
   }, [applyClaimDetails]);
 
-  const runValidation = useCallback(async (claimId) => {
-    if (!claimId) {
-      return null;
-    }
 
-    setValidationLoading(true);
-    setReviewError('');
-    try {
-      const validation = await validateClientClaim(claimId);
-      setActiveClaimDetails((current) => (current ? { ...current, validation } : current));
-      return validation;
-    } catch (error) {
-      setReviewError(extractErrorMessage(error, 'Unable to run client validation.'));
-      throw error;
-    } finally {
-      setValidationLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     loadAllPolicies();
     loadClaimQueue();
-  }, [loadAllPolicies, loadClaimQueue]);
+    loadHistoryQueue();
+  }, [loadAllPolicies, loadClaimQueue, loadHistoryQueue]);
 
   const handleSearch = async (event) => {
     event.preventDefault();
@@ -212,78 +204,25 @@ function ClientPage() {
     setActiveClaimId(claimId);
     setReviewSuccess('');
     setReviewError('');
-    setRejectionReason('');
     setIsReviewOpen(true);
 
     try {
-      const data = await loadClientClaimDetails(claimId);
-      if (isPendingClientReview(data?.claim)) {
-        await runValidation(claimId);
-      }
+      await loadClientClaimDetails(claimId);
     } catch {
       // Error state is already handled in load/validate helpers.
     }
   };
 
   const closeClaimReview = () => {
-    if (validationLoading || actionLoading) {
-      return;
-    }
-
     setIsReviewOpen(false);
     setActiveClaimId(null);
     setActiveClaimDetails(null);
     setSelectedDocumentId(null);
     setReviewError('');
     setReviewSuccess('');
-    setRejectionReason('');
   };
 
-  const handleApproveClaim = async () => {
-    if (!activeClaimId) {
-      return;
-    }
 
-    setActionLoading('approve');
-    setReviewError('');
-    setReviewSuccess('');
-    try {
-      const data = await approveClientClaim(activeClaimId);
-      applyClaimDetails(data);
-      setReviewSuccess(
-        data?.claim?.stage === 'CLIENT_REJECTED'
-          ? 'Validation failed and the claim was rejected with a customer-visible timeline update.'
-          : 'Claim validated successfully and forwarded to FMG.'
-      );
-      await loadClaimQueue();
-    } catch (error) {
-      setReviewError(extractErrorMessage(error, 'Unable to forward claim to FMG.'));
-    } finally {
-      setActionLoading('');
-    }
-  };
-
-  const handleRejectClaim = async () => {
-    if (!activeClaimId) {
-      return;
-    }
-
-    setActionLoading('reject');
-    setReviewError('');
-    setReviewSuccess('');
-    try {
-      const data = await rejectClientClaim(activeClaimId, {
-        rejectionReason: rejectionReason.trim() || undefined,
-      });
-      applyClaimDetails(data);
-      setReviewSuccess('Claim rejected successfully and the customer timeline was updated.');
-      await loadClaimQueue();
-    } catch (error) {
-      setReviewError(extractErrorMessage(error, 'Unable to reject this claim right now.'));
-    } finally {
-      setActionLoading('');
-    }
-  };
 
   const totalRecords = records.length;
   const activeRecords = records.filter((record) => record.active).length;
@@ -292,8 +231,6 @@ function ClientPage() {
 
   const activeClaim = activeClaimDetails?.claim;
   const activeValidation = activeClaimDetails?.validation;
-  const reviewIsPending = isPendingClientReview(activeClaim);
-  const validationPassed = activeValidation?.validationStatus === 'PASSED' && activeValidation?.reviewDecision === 'PENDING';
   const selectedDocumentUrl = selectedDocumentId
     ? getClientDocumentViewUrl(activeClaimId, selectedDocumentId, token)
     : null;
@@ -370,15 +307,38 @@ function ClientPage() {
           </button>
         </div>
 
-        {claimQueueLoading ? (
+        <div className="mt-6 mb-4 flex gap-1 border-b border-slate-200">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`px-4 py-2.5 text-sm font-medium transition ${
+              activeTab === 'pending'
+                ? 'border-b-2 border-brand-600 text-brand-700'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Pending Review
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2.5 text-sm font-medium transition ${
+              activeTab === 'history'
+                ? 'border-b-2 border-brand-600 text-brand-700'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Processed History
+          </button>
+        </div>
+
+        {(activeTab === 'pending' ? claimQueueLoading : historyLoading) ? (
           <div className="flex h-32 items-center justify-center">
             <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
           </div>
         ) : (
           <DataTable
             columns={claimColumns}
-            data={claimQueue}
-            emptyMessage="No customer-submitted claims are waiting for client review."
+            data={activeTab === 'pending' ? claimQueue : historyQueue}
+            emptyMessage={activeTab === 'pending' ? "No customer-submitted claims are waiting for client review." : "No processed historical claims found."}
             onRowClick={(claim) => openClaimReview(claim.id)}
           />
         )}
@@ -583,17 +543,7 @@ function ClientPage() {
                           </StatusBadge>
                         </>
                       ) : null}
-                      {reviewIsPending ? (
-                        <button
-                          type="button"
-                          onClick={() => runValidation(activeClaimId)}
-                          disabled={validationLoading || actionLoading}
-                          className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                        >
-                          {validationLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-                          Refresh Validation
-                        </button>
-                      ) : null}
+
                     </div>
                   </div>
 
@@ -655,18 +605,7 @@ function ClientPage() {
                     </div>
                   ) : null}
 
-                  {reviewIsPending ? (
-                    <label className="mt-4 block space-y-2">
-                      <span className="text-sm font-medium text-ink-900">Optional rejection note</span>
-                      <textarea
-                        value={rejectionReason}
-                        onChange={(event) => setRejectionReason(event.target.value)}
-                        rows={3}
-                        placeholder="Add a manual rejection note, or leave blank to use deterministic validation failures."
-                        className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm text-ink-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-                      />
-                    </label>
-                  ) : null}
+
                 </section>
 
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -702,33 +641,11 @@ function ClientPage() {
                 <button
                   type="button"
                   onClick={closeClaimReview}
-                  disabled={validationLoading || actionLoading}
                   className="rounded-md border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
                 >
                   Close
                 </button>
-                {reviewIsPending ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleRejectClaim}
-                      disabled={validationLoading || actionLoading}
-                      className="inline-flex items-center justify-center gap-2 rounded-md border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-                    >
-                      {actionLoading === 'reject' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <AlertCircle className="h-4 w-4" />}
-                      Reject Claim
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleApproveClaim}
-                      disabled={validationLoading || actionLoading || !validationPassed}
-                      className="inline-flex items-center justify-center gap-2 rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60"
-                    >
-                      {actionLoading === 'approve' ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                      Forward to FMG
-                    </button>
-                  </>
-                ) : null}
+
               </div>
             </div>
           </div>

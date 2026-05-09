@@ -17,6 +17,7 @@ import {
   evaluateFmgClaim,
   getFmgClaim,
   getFmgClaimsQueue,
+  getFmgHistoryQueue,
   getFmgDocumentViewUrl,
   getFmgManualReviewQueue,
   getFmgManualReviewDetails,
@@ -92,9 +93,11 @@ function FmgPage() {
   const { user, token } = useAuth();
   const [claimQueue, setClaimQueue] = useState([]);
   const [manualQueue, setManualQueue] = useState([]);
+  const [historyQueue, setHistoryQueue] = useState([]);
   const [queueDecisionState, setQueueDecisionState] = useState({});
   const [queueLoading, setQueueLoading] = useState(true);
   const [queueError, setQueueError] = useState('');
+  const [activeTab, setActiveTab] = useState('standard');
 
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [activeClaimId, setActiveClaimId] = useState(null);
@@ -113,17 +116,20 @@ function FmgPage() {
     setQueueError('');
 
     try {
-      const [queue, manual] = await Promise.all([
+      const [queue, manual, history] = await Promise.all([
         getFmgClaimsQueue(),
-        getFmgManualReviewQueue()
+        getFmgManualReviewQueue(),
+        getFmgHistoryQueue()
       ]);
       
       setClaimQueue(queue || []);
       setManualQueue(manual || []);
+      setHistoryQueue(history || []);
       await hydrateQueueDecisions([...(queue || []), ...(manual || [])]);
     } catch (error) {
       setClaimQueue([]);
       setManualQueue([]);
+      setHistoryQueue([]);
       setQueueDecisionState({});
       setQueueError(extractErrorMessage(error, 'Unable to load the FMG review queues.'));
     } finally {
@@ -374,8 +380,34 @@ function FmgPage() {
       </div>
 
       <div className="grid gap-8">
-        {/* Manual Review Queue Section */}
-        {manualQueue.length > 0 && (
+        <div className="flex gap-1 border-b border-slate-200">
+          <button
+            onClick={() => setActiveTab('standard')}
+            className={`px-4 py-2.5 text-sm font-medium transition ${
+              activeTab === 'standard' ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Standard Queue
+          </button>
+          <button
+            onClick={() => setActiveTab('manual')}
+            className={`px-4 py-2.5 text-sm font-medium transition ${
+              activeTab === 'manual' ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Manual Queue {manualQueue.length > 0 ? `(${manualQueue.length})` : ''}
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2.5 text-sm font-medium transition ${
+              activeTab === 'history' ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Processed History
+          </button>
+        </div>
+
+        {activeTab === 'manual' && (
           <section className="rounded-md border-2 border-indigo-100 bg-white p-6 shadow-md">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -401,45 +433,81 @@ function FmgPage() {
           </section>
         )}
 
-        {/* Standard Review Queue Section */}
-        <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-semibold text-ink-900">FMG Claim Queue</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Open a claim to inspect OCR output, compare source documents, review triggered rules, and confirm the final FMG decision.
-              </p>
+        {activeTab === 'standard' && (
+          <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-ink-900">FMG Claim Queue</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Open a claim to inspect OCR output, compare source documents, review triggered rules, and confirm the final FMG decision.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadQueues}
+                disabled={queueLoading}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                {queueLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Refresh Queues
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={loadQueues}
-              disabled={queueLoading}
-              className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-            >
-              {queueLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refresh Queues
-            </button>
-          </div>
 
-          {queueError ? (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {queueError}
-            </div>
-          ) : null}
+            {queueError ? (
+              <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {queueError}
+              </div>
+            ) : null}
 
-          {queueLoading ? (
-            <div className="flex h-32 items-center justify-center">
-              <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+            {queueLoading ? (
+              <div className="flex h-32 items-center justify-center">
+                <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={claimQueue}
+                emptyMessage="No claims are currently waiting for FMG review."
+                onRowClick={(claim) => openClaimReview(claim.id, false)}
+              />
+            )}
+          </section>
+        )}
+
+        {activeTab === 'history' && (
+          <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-ink-900">FMG Processed History</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Historical view of claims that have been processed by FMG.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadQueues}
+                disabled={queueLoading}
+                className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                {queueLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Refresh Queues
+              </button>
             </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={claimQueue}
-              emptyMessage="No claims are currently waiting for FMG review."
-              onRowClick={(claim) => openClaimReview(claim.id, false)}
-            />
-          )}
-        </section>
+
+            {queueLoading ? (
+              <div className="flex h-32 items-center justify-center">
+                <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={historyQueue}
+                emptyMessage="No processed historical claims found."
+                onRowClick={(claim) => openClaimReview(claim.id, false)}
+              />
+            )}
+          </section>
+        )}
       </div>
 
       <Modal
@@ -564,7 +632,7 @@ function FmgPage() {
                     actionLoading={actionLoading}
                     onSubmit={handleSubmitManualReview}
                   />
-                ) : (
+                ) : activeClaim?.stage === 'FMG_REVIEW' ? (
                   <>
                     <FmgRuleEvaluationPanel
                       decision={activeDecision}
@@ -579,6 +647,13 @@ function FmgPage() {
                       onConfirm={handleConfirmDecision}
                     />
                   </>
+                ) : (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+                    <p className="text-sm font-semibold text-blue-800">FMG Review Completed</p>
+                    <p className="mt-1 text-sm text-blue-600">
+                      This claim has already been processed by FMG and is now in the {humanize(activeClaim?.stage)} stage.
+                    </p>
+                  </div>
                 )}
 
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

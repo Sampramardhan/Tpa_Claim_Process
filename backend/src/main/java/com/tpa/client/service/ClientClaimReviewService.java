@@ -14,6 +14,7 @@ import com.tpa.claims.repository.ClaimDocumentRepository;
 import com.tpa.claims.repository.ClaimRepository;
 import com.tpa.claims.service.ClaimFileStorageService;
 import com.tpa.claims.service.ClaimResponseMapper;
+import com.tpa.claims.service.ClaimSubmittedEvent;
 import com.tpa.client.dto.ClientClaimRejectRequest;
 import com.tpa.client.dto.ClientClaimReviewDetailsResponse;
 import com.tpa.client.dto.ClientClaimValidationResponse;
@@ -23,6 +24,9 @@ import com.tpa.client.enums.ClientReviewDecision;
 import com.tpa.client.enums.ClientValidationStatus;
 import com.tpa.client.repository.ClientClaimValidationRepository;
 import com.tpa.common.enums.ClaimStage;
+import com.tpa.claims.service.ClaimFileStorageService;
+import com.tpa.claims.service.ClaimResponseMapper;
+import com.tpa.common.enums.ClaimStage;
 import com.tpa.common.enums.ClaimStatus;
 import com.tpa.customer.repository.CustomerRepository;
 import com.tpa.exception.ResourceNotFoundException;
@@ -31,6 +35,7 @@ import com.tpa.security.TpaUserPrincipal;
 import com.tpa.timeline.dto.TimelineEntryDto;
 import com.tpa.timeline.service.ClaimTimelineService;
 import com.tpa.utils.DateTimeUtils;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,95 +95,64 @@ public class ClientClaimReviewService {
     }
 
     @Transactional(readOnly = true)
+    public List<ClaimResponse> getHistoryQueue() {
+        return claimRepository.findAllByStagesInWithDetails(
+                        List.of(
+                                ClaimStage.CLIENT_REJECTED,
+                                ClaimStage.FMG_REVIEW,
+                                ClaimStage.FMG_MANUAL_REVIEW,
+                                ClaimStage.CARRIER_REVIEW,
+                                ClaimStage.COMPLETED
+                        )
+                ).stream()
+                .map(claimResponseMapper::toClaimResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ClientClaimReviewDetailsResponse getClaimDetails(UUID claimId) {
         return buildReviewDetails(loadClaim(claimId));
     }
 
+    @EventListener
     @Transactional
-    public ClientClaimValidationResponse validateClaim(UUID claimId, TpaUserPrincipal principal) {
-        Claim claim = loadPendingClientReviewClaim(claimId);
-        ValidationSnapshot snapshot = evaluateClaim(claim, claimDocumentRepository.findAllByClaim_IdOrderByUploadedAtAsc(claimId));
+    public void handleClaimSubmitted(ClaimSubmittedEvent event) {
+        Claim claim = loadPendingClientReviewClaim(event.claimId());
+        ValidationSnapshot snapshot = evaluateClaim(claim, claimDocumentRepository.findAllByClaim_IdOrderByUploadedAtAsc(event.claimId()));
 
-        ClientClaimValidation validation = saveValidation(
-                claim,
-                snapshot,
-                principal.getEmail(),
-                snapshot.passed() ? ClientValidationStatus.PASSED : ClientValidationStatus.FAILED,
-                ClientReviewDecision.PENDING,
-                null
-        );
-
-        return toValidationResponse(validation);
-    }
-
-    @Transactional
-    public ClientClaimReviewDetailsResponse approveClaim(UUID claimId, TpaUserPrincipal principal) {
-        Claim claim = loadPendingClientReviewClaim(claimId);
-        ValidationSnapshot snapshot = evaluateClaim(claim, claimDocumentRepository.findAllByClaim_IdOrderByUploadedAtAsc(claimId));
+        String reviewerEmail = "SYSTEM_AUTO_VALIDATION";
 
         if (snapshot.passed()) {
             saveValidation(
                     claim,
                     snapshot,
-                    principal.getEmail(),
+                    reviewerEmail,
                     ClientValidationStatus.PASSED,
                     ClientReviewDecision.FORWARDED_TO_FMG,
                     null
             );
             claim.setStatus(ClaimStatus.UNDER_REVIEW);
             claim.setStage(ClaimStage.FMG_REVIEW);
-            claim.setUpdatedBy(principal.getEmail());
+            claim.setUpdatedBy(reviewerEmail);
             claimRepository.save(claim);
             claimTimelineService.record(
                     claim,
                     ClaimStage.FMG_REVIEW,
                     ClaimStatus.UNDER_REVIEW,
-                    "Client validation passed and the claim was forwarded to FMG."
+                    "Client validation passed automatically and the claim was forwarded to FMG."
             );
         } else {
             String rejectionReason = snapshot.failureSummary();
             saveValidation(
                     claim,
                     snapshot,
-                    principal.getEmail(),
+                    reviewerEmail,
                     ClientValidationStatus.FAILED,
                     ClientReviewDecision.REJECTED,
                     rejectionReason
             );
-            rejectClaim(claim, principal.getEmail(), rejectionReason);
+            rejectClaim(claim, reviewerEmail, rejectionReason);
         }
-
-        return buildReviewDetails(loadClaim(claimId));
-    }
-
-    @Transactional
-    public ClientClaimReviewDetailsResponse rejectClaim(
-            UUID claimId,
-            ClientClaimRejectRequest request,
-            TpaUserPrincipal principal
-    ) {
-        Claim claim = loadPendingClientReviewClaim(claimId);
-        ValidationSnapshot snapshot = evaluateClaim(claim, claimDocumentRepository.findAllByClaim_IdOrderByUploadedAtAsc(claimId));
-
-        String rejectionReason = hasText(request == null ? null : request.rejectionReason())
-                ? request.rejectionReason().trim()
-                : snapshot.failureSummary();
-
-        if (!hasText(rejectionReason)) {
-            rejectionReason = "Rejected during client validation review.";
-        }
-
-        saveValidation(
-                claim,
-                snapshot,
-                principal.getEmail(),
-                snapshot.passed() ? ClientValidationStatus.PASSED : ClientValidationStatus.FAILED,
-                ClientReviewDecision.REJECTED,
-                rejectionReason
-        );
-        rejectClaim(claim, principal.getEmail(), rejectionReason);
-
-        return buildReviewDetails(loadClaim(claimId));
     }
 
     @Transactional(readOnly = true)
