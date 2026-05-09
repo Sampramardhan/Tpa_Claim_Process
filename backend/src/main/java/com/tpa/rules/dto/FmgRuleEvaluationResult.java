@@ -15,7 +15,7 @@ public record FmgRuleEvaluationResult(
     }
 
     public ClaimStatus resultingStatus() {
-        return decision;
+        return decision == ClaimStatus.APPROVED ? ClaimStatus.UNDER_REVIEW : decision;
     }
 
     public ClaimStage resultingStage() {

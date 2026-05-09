@@ -140,15 +140,16 @@ public class FmgClaimReviewService {
         ClientClaimValidation validation = loadForwardedClientValidation(claimId);
         FmgClaimDecision decision = loadEvaluatedDecision(claimId);
         ClaimStatus finalDecision = resolveConfirmedDecision(request, decision);
+        ClaimStatus resultingStatus = finalDecision == ClaimStatus.APPROVED ? ClaimStatus.UNDER_REVIEW : finalDecision;
 
         decision.setFinalDecision(finalDecision);
         decision.setConfirmedAt(DateTimeUtils.nowUtc());
         decision.setConfirmedBy(principal.getEmail());
-        decision.setStatusAfterDecision(finalDecision);
+        decision.setStatusAfterDecision(resultingStatus);
         decision.setStageAfterDecision(resolveResultingStage(finalDecision));
         fmgClaimDecisionRepository.save(decision);
 
-        applyConfirmedDecision(claim, finalDecision, principal.getEmail());
+        applyConfirmedDecision(claim, finalDecision, resultingStatus, principal.getEmail());
         return buildReviewDetails(loadClaim(claimId), validation);
     }
 
@@ -213,16 +214,17 @@ public class FmgClaimReviewService {
 
         ClaimStatus manualDecision = request.decision();
         ClaimStage resultingStage = resolveManualReviewStage(manualDecision);
+        ClaimStatus resultingStatus = manualDecision == ClaimStatus.APPROVED ? ClaimStatus.UNDER_REVIEW : manualDecision;
 
         review.setReviewerNotes(request.reviewerNotes());
         review.setManualDecision(manualDecision);
-        review.setStatusAfterDecision(manualDecision);
+        review.setStatusAfterDecision(resultingStatus);
         review.setStageAfterDecision(resultingStage);
         review.setReviewedAt(DateTimeUtils.nowUtc());
         review.setReviewedBy(principal.getEmail());
         fmgManualReviewRepository.save(review);
 
-        claim.setStatus(manualDecision);
+        claim.setStatus(resultingStatus);
         claim.setStage(resultingStage);
         claim.setUpdatedBy(principal.getEmail());
         claimRepository.save(claim);
@@ -230,7 +232,7 @@ public class FmgClaimReviewService {
         claimTimelineService.record(
                 claim,
                 resultingStage,
-                manualDecision,
+                resultingStatus,
                 manualReviewTimelineDescription(manualDecision, principal.getEmail())
         );
 
@@ -301,8 +303,8 @@ public class FmgClaimReviewService {
         return validation;
     }
 
-    private void applyConfirmedDecision(Claim claim, ClaimStatus finalDecision, String reviewerEmail) {
-        claim.setStatus(finalDecision);
+    private void applyConfirmedDecision(Claim claim, ClaimStatus finalDecision, ClaimStatus resultingStatus, String reviewerEmail) {
+        claim.setStatus(resultingStatus);
         claim.setStage(resolveResultingStage(finalDecision));
         claim.setUpdatedBy(reviewerEmail);
         claimRepository.save(claim);
@@ -310,7 +312,7 @@ public class FmgClaimReviewService {
         claimTimelineService.record(
                 claim,
                 resolveResultingStage(finalDecision),
-                finalDecision,
+                resultingStatus,
                 confirmationTimelineDescription(finalDecision)
         );
     }
@@ -362,7 +364,7 @@ public class FmgClaimReviewService {
 
     private String confirmationTimelineDescription(ClaimStatus finalDecision) {
         return switch (finalDecision) {
-            case APPROVED -> "FMG confirmed APPROVED and forwarded the claim to carrier review.";
+            case APPROVED -> "Forwarded to Carrier Review. Awaiting final carrier payment decision.";
             case REJECTED -> "FMG confirmed REJECTED and completed the claim.";
             case MANUAL_REVIEW -> "FMG confirmed MANUAL_REVIEW and routed the claim for FMG manual review.";
             default -> throw new IllegalStateException("Unsupported FMG decision: " + finalDecision);
@@ -371,7 +373,7 @@ public class FmgClaimReviewService {
 
     private String manualReviewTimelineDescription(ClaimStatus manualDecision, String reviewerEmail) {
         return switch (manualDecision) {
-            case APPROVED -> "FMG manual review APPROVED by " + reviewerEmail + ". Claim forwarded to carrier review.";
+            case APPROVED -> "Forwarded to Carrier Review. Awaiting final carrier payment decision.";
             case REJECTED -> "FMG manual review REJECTED by " + reviewerEmail + ". Claim completed.";
             default -> throw new IllegalStateException("Unsupported manual review decision: " + manualDecision);
         };

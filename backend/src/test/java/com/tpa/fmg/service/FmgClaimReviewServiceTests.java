@@ -17,6 +17,7 @@ import com.tpa.common.enums.UserRole;
 import com.tpa.fmg.dto.FmgConfirmDecisionRequest;
 import com.tpa.fmg.entity.FmgClaimDecision;
 import com.tpa.fmg.repository.FmgClaimDecisionRepository;
+import com.tpa.fmg.repository.FmgManualReviewRepository;
 import com.tpa.rules.dto.FmgRuleContext;
 import com.tpa.rules.dto.FmgRuleEvaluationResult;
 import com.tpa.rules.dto.FmgRuleTrigger;
@@ -51,6 +52,7 @@ class FmgClaimReviewServiceTests {
         ClaimDocumentRepository claimDocumentRepository = mock(ClaimDocumentRepository.class);
         ClientClaimValidationRepository clientClaimValidationRepository = mock(ClientClaimValidationRepository.class);
         FmgClaimDecisionRepository fmgClaimDecisionRepository = mock(FmgClaimDecisionRepository.class);
+        FmgManualReviewRepository fmgManualReviewRepository = mock(FmgManualReviewRepository.class);
         ClaimFileStorageService claimFileStorageService = mock(ClaimFileStorageService.class);
         ClaimResponseMapper claimResponseMapper = mock(ClaimResponseMapper.class);
         ClaimTimelineService claimTimelineService = mock(ClaimTimelineService.class);
@@ -62,6 +64,7 @@ class FmgClaimReviewServiceTests {
                 claimDocumentRepository,
                 clientClaimValidationRepository,
                 fmgClaimDecisionRepository,
+                fmgManualReviewRepository,
                 claimFileStorageService,
                 claimResponseMapper,
                 claimTimelineService,
@@ -118,6 +121,7 @@ class FmgClaimReviewServiceTests {
         ClaimDocumentRepository claimDocumentRepository = mock(ClaimDocumentRepository.class);
         ClientClaimValidationRepository clientClaimValidationRepository = mock(ClientClaimValidationRepository.class);
         FmgClaimDecisionRepository fmgClaimDecisionRepository = mock(FmgClaimDecisionRepository.class);
+        FmgManualReviewRepository fmgManualReviewRepository = mock(FmgManualReviewRepository.class);
         ClaimFileStorageService claimFileStorageService = mock(ClaimFileStorageService.class);
         ClaimResponseMapper claimResponseMapper = mock(ClaimResponseMapper.class);
         ClaimTimelineService claimTimelineService = mock(ClaimTimelineService.class);
@@ -129,6 +133,7 @@ class FmgClaimReviewServiceTests {
                 claimDocumentRepository,
                 clientClaimValidationRepository,
                 fmgClaimDecisionRepository,
+                fmgManualReviewRepository,
                 claimFileStorageService,
                 claimResponseMapper,
                 claimTimelineService,

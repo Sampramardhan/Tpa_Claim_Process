@@ -35,7 +35,7 @@ const CLAIM_STATUS_VARIANTS = {
   APPROVED: 'active',
   REJECTED: 'expired',
   MANUAL_REVIEW: 'info',
-  PAYMENT_COMPLETED: 'active',
+  PAID: 'active',
 };
 const OCR_STATUS_VARIANTS = { PENDING: 'pending', PROCESSING: 'pending', COMPLETED: 'active', FAILED: 'expired' };
 const STAGE_VARIANTS = {

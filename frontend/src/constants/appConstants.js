@@ -20,7 +20,7 @@ export const CLAIM_STATUSES = Object.freeze({
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   MANUAL_REVIEW: 'MANUAL_REVIEW',
-  PAYMENT_COMPLETED: 'PAYMENT_COMPLETED',
+  PAID: 'PAID',
 });
 
 export const CLAIM_STAGES = Object.freeze({

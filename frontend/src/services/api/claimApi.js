@@ -103,6 +103,29 @@ export async function submitFmgManualReview(claimId, payload) {
   return response.data.data;
 }
 
+// ── Carrier Review ──────────────────────────────────────────────────
+
+export async function getCarrierClaimsQueue() {
+  const response = await apiClient.get('/carrier/claims');
+  return response.data.data;
+}
+
+export async function getCarrierClaim(claimId) {
+  const response = await apiClient.get(`/carrier/claims/${claimId}`);
+  return response.data.data;
+}
+
+export async function approveCarrierPayment(claimId, payload) {
+  const response = await apiClient.post(`/carrier/claims/${claimId}/approve`, payload);
+  return response.data.data;
+}
+
+export async function rejectCarrierClaim(claimId, payload) {
+  const response = await apiClient.post(`/carrier/claims/${claimId}/reject`, payload);
+  return response.data.data;
+}
+
+
 function buildDocumentViewUrl(pathPrefix, claimId, documentId, token) {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
   const url = `${baseUrl}${pathPrefix}/${claimId}/documents/${documentId}/view`;
@@ -119,4 +142,8 @@ export function getClientDocumentViewUrl(claimId, documentId, token) {
 
 export function getFmgDocumentViewUrl(claimId, documentId, token) {
   return buildDocumentViewUrl('/fmg/claims', claimId, documentId, token);
+}
+
+export function getCarrierDocumentViewUrl(claimId, documentId, token) {
+  return buildDocumentViewUrl('/carrier/claims', claimId, documentId, token);
 }

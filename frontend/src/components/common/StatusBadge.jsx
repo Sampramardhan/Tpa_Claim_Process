@@ -4,7 +4,7 @@ const statusStyles = {
   APPROVED: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   REJECTED: 'bg-rose-50 text-rose-700 ring-rose-200',
   MANUAL_REVIEW: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-  PAYMENT_COMPLETED: 'bg-teal-50 text-teal-700 ring-teal-200',
+  PAID: 'bg-teal-50 text-teal-700 ring-teal-200',
   DEFAULT: 'bg-slate-50 text-slate-700 ring-slate-200',
 };
 

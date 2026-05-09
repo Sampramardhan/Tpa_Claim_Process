@@ -21,7 +21,7 @@ const STATUS_VARIANTS = {
   APPROVED: 'active',
   REJECTED: 'expired',
   MANUAL_REVIEW: 'info',
-  PAYMENT_COMPLETED: 'active',
+  PAID: 'active',
 };
 
 const STAGE_VARIANTS = {
