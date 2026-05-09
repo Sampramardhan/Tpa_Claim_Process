@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { navigationRoutes } from '../../routes/routeConfig.js';
+import { getRoleHomePath } from '../../utils/authUtils.js';
 
 function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth();
@@ -40,11 +41,13 @@ function Sidebar({ isOpen, onClose }) {
         <nav className="flex-1 space-y-1 px-3 py-4">
           {visibleRoutes.map((item) => {
             const Icon = item.icon;
+            // Resolve dashboard to role-specific home
+            const targetPath = item.path === '/dashboard' ? getRoleHomePath(user?.role) : item.path;
 
             return (
               <NavLink
                 key={item.path}
-                to={item.path}
+                to={targetPath}
                 end={item.end}
                 onClick={onClose}
                 className={({ isActive }) =>
@@ -62,6 +65,7 @@ function Sidebar({ isOpen, onClose }) {
             );
           })}
         </nav>
+
 
         <div className="border-t border-slate-200 px-5 py-4">
           <p className="text-xs font-medium uppercase text-slate-500">Foundation Build</p>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   XCircle,
 } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import DocumentViewer from '../components/claims/DocumentViewer.jsx';
 import TimelineShell from '../components/timeline/TimelineShell.jsx';
 import DashboardCard from '../components/ui/DashboardCard.jsx';
@@ -271,9 +272,20 @@ function ClientPage() {
     },
   ];
 
+  // Analytics Data
+  const policyStatusData = useMemo(() => [
+    { name: 'Active', value: activeRecords, fill: '#10b981' },
+    { name: 'Expired', value: totalRecords - activeRecords, fill: '#f43f5e' }
+  ], [activeRecords, totalRecords]);
+
+  const queueOverviewData = useMemo(() => [
+    { name: 'Pending Review', count: claimQueue.length, fill: '#f59e0b' },
+    { name: 'Processed History', count: historyQueue.length, fill: '#3b82f6' }
+  ], [claimQueue, historyQueue]);
+
   return (
     <PageShell title="Client Dashboard" eyebrow="Client Portal">
-      <div className="grid gap-4 lg:grid-cols-4">
+      <div className="grid gap-6 lg:grid-cols-4">
         <DashboardCard eyebrow="Signed In As" title={user?.fullName}>
           <p className="text-sm text-slate-500">Bank / Mediator Operations</p>
         </DashboardCard>
@@ -286,6 +298,40 @@ function ClientPage() {
         <DashboardCard eyebrow="Unique Customers" title={String(uniqueCustomers)}>
           <p className="text-sm text-slate-500">With policy ownership</p>
         </DashboardCard>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4">Policy Status Distribution</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={policyStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
+                  {policyStatusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <RechartsTooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+        
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4">Validation Queue Activity</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={queueOverviewData} layout="vertical" margin={{ top: 20, right: 30, left: 40, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} />
+                <RechartsTooltip cursor={{fill: 'transparent'}} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
       </div>
 
       <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">

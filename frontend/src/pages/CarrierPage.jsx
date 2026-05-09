@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { AlertCircle, CheckCircle2, ClipboardCheck, FileSearch, Plus, Power, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import DashboardCard from '../components/ui/DashboardCard.jsx';
 import DataTable from '../components/ui/DataTable.jsx';
 import Modal from '../components/ui/Modal.jsx';
@@ -274,9 +275,30 @@ function CarrierPage() {
     { key: 'submissionDate', label: 'Submitted', render: (c) => formatDateTime(c.submissionDate) },
   ];
 
+  // Analytics Data Preparation
+  const policyChartData = useMemo(() => {
+    const counts = policies.reduce((acc, p) => {
+      acc[p.policyType] = (acc[p.policyType] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([name, value]) => ({ name: TYPE_LABELS[name] || name, value }));
+  }, [policies]);
+  const COLORS = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b'];
+
+  const claimStatusData = useMemo(() => {
+    const pending = claimQueue.length;
+    const approved = historyQueue.filter(c => c.status === 'PAID').length;
+    const rejected = historyQueue.filter(c => c.status === 'REJECTED').length;
+    return [
+      { name: 'Pending', count: pending, fill: '#f59e0b' },
+      { name: 'Paid', count: approved, fill: '#10b981' },
+      { name: 'Rejected', count: rejected, fill: '#ef4444' }
+    ];
+  }, [claimQueue, historyQueue]);
+
   return (
     <PageShell title="Carrier Dashboard" eyebrow="Insurance Provider Portal">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-4">
         <DashboardCard eyebrow="Provider" title={user?.fullName}>
           <p className="text-sm text-slate-500">Carrier Settlement Authority</p>
         </DashboardCard>
@@ -286,6 +308,42 @@ function CarrierPage() {
         <DashboardCard eyebrow="Total Policies" title={String(policies.length)}>
           <p className="text-sm text-slate-500">{policies.filter(p => p.active).length} active products</p>
         </DashboardCard>
+        <DashboardCard eyebrow="Processed" title={String(historyQueue.length)}>
+          <p className="text-sm text-slate-500">Total historical claims</p>
+        </DashboardCard>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4">Policy Distribution</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={policyChartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {policyChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <RechartsTooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4">Settlement Overview</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={claimStatusData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <RechartsTooltip cursor={{fill: 'transparent'}} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
       </div>
 
       <div className="mt-8 border-b border-slate-200">

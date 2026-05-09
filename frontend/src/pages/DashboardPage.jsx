@@ -1,39 +1,35 @@
-import TimelineShell from '../components/timeline/TimelineShell.jsx';
-import DashboardCard from '../components/ui/DashboardCard.jsx';
-import PageShell from '../components/ui/PageShell.jsx';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { RefreshCw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
+import { getRoleHomePath } from '../utils/authUtils.js';
 
+/**
+ * DashboardPage - Redirects users to their role-specific operational home.
+ * This replaces the previous static placeholder dashboard template.
+ */
 function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isInitialized } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isInitialized && user?.role) {
+      const homePath = getRoleHomePath(user.role);
+      navigate(homePath, { replace: true });
+    }
+  }, [isInitialized, user, navigate]);
 
   return (
-    <PageShell title="Dashboard" eyebrow="Workspace">
-      <div className="grid gap-4 lg:grid-cols-3">
-        <DashboardCard eyebrow="Signed In" title={user?.fullName || 'User'}>
-          <p className="text-sm font-medium uppercase text-slate-500">{user?.role}</p>
-        </DashboardCard>
-        <DashboardCard eyebrow="Session" title="Authenticated">
-          <div className="h-2 rounded-full bg-emerald-100" />
-        </DashboardCard>
-        <DashboardCard eyebrow="Access Scope" title={`${user?.role || 'Role'} Portal`}>
-          <div className="h-2 rounded-full bg-slate-100" />
-        </DashboardCard>
+    <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-4">
+        <RefreshCw className="h-8 w-8 animate-spin text-brand-600" />
+        <p className="text-sm font-medium text-slate-500 text-center">
+          Loading your operational workspace...
+        </p>
       </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-ink-900">Dashboard Shell</h3>
-          <div className="mt-5 grid gap-4 lg:grid-cols-3">
-            <div className="h-28 rounded-md bg-slate-100" />
-            <div className="h-28 rounded-md bg-slate-100" />
-            <div className="h-28 rounded-md bg-slate-100" />
-          </div>
-        </section>
-
-        <TimelineShell entries={[]} />
-      </div>
-    </PageShell>
+    </div>
   );
 }
 
 export default DashboardPage;
+

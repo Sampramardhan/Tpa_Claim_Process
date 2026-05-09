@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { ClipboardEdit, FileSearch, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import DocumentViewer from '../components/claims/DocumentViewer.jsx';
 import ReviewField from '../components/claims/ReviewField.jsx';
 import FmgDecisionActionPanel from '../components/fmg/FmgDecisionActionPanel.jsx';
@@ -304,6 +305,26 @@ function FmgPage() {
     (document) => document.documentType === 'HOSPITAL_DOCUMENT'
   );
 
+  // Analytics Data
+  const workloadData = useMemo(() => [
+    { name: 'Standard', count: claimQueue.length, fill: '#0ea5e9' },
+    { name: 'Manual', count: manualQueue.length, fill: '#8b5cf6' },
+    { name: 'Processed', count: historyQueue.length, fill: '#10b981' }
+  ], [claimQueue, manualQueue, historyQueue]);
+
+  const evaluationData = useMemo(() => {
+    const unconfirmed = awaitingConfirmationCount;
+    const confirmed = evaluatedCount - awaitingConfirmationCount;
+    const pendingEval = claimQueue.length - evaluatedCount;
+    return [
+      { name: 'Evaluated & Confirmed', value: confirmed },
+      { name: 'Evaluated (Unconfirmed)', value: unconfirmed },
+      { name: 'Pending Evaluation', value: pendingEval }
+    ].filter(d => d.value > 0);
+  }, [claimQueue, evaluatedCount, awaitingConfirmationCount]);
+  
+  const EVAL_COLORS = ['#10b981', '#f59e0b', '#cbd5e1'];
+
   const columns = [
     {
       key: 'claimNumber',
@@ -364,7 +385,7 @@ function FmgPage() {
 
   return (
     <PageShell title="FMG Dashboard" eyebrow="FMG Review Portal">
-      <div className="grid gap-4 lg:grid-cols-4">
+      <div className="grid gap-6 lg:grid-cols-4">
         <DashboardCard eyebrow="Signed In As" title={user?.fullName}>
           <p className="text-sm text-slate-500">Final medical governance review</p>
         </DashboardCard>
@@ -377,6 +398,43 @@ function FmgPage() {
         <DashboardCard eyebrow="Evaluated" title={String(evaluatedCount)}>
           <p className="text-sm text-slate-500">{awaitingConfirmationCount} still awaiting confirmation</p>
         </DashboardCard>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4">Workload Overview</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={workloadData} layout="vertical" margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" axisLine={false} tickLine={false} />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} />
+                <RechartsTooltip cursor={{fill: 'transparent'}} />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={32} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+        
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-ink-900 mb-4">Standard Queue Status</h3>
+          <div className="h-64">
+            {evaluationData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={evaluationData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
+                    {evaluationData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={EVAL_COLORS[index % EVAL_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-slate-400">No data available</div>
+            )}
+          </div>
+        </section>
       </div>
 
       <div className="grid gap-8">

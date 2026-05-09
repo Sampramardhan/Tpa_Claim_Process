@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { AlertCircle, CheckCircle2, FileSearch, FileText, Plus, RefreshCw, ScanSearch, Upload } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import DashboardCard from '../components/ui/DashboardCard.jsx';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import Modal from '../components/ui/Modal.jsx';
@@ -154,6 +155,25 @@ function CustomerClaimsPage() {
   const submittedClaims = claims.filter((claim) => claim.status === 'SUBMITTED').length;
   const readyClaims = claims.filter((claim) => claim.ocrStatus === 'COMPLETED').length;
   const processingClaims = claims.filter((claim) => claim.ocrStatus === 'PENDING' || claim.ocrStatus === 'PROCESSING').length;
+
+  // Analytics Data
+  const claimStatusData = useMemo(() => {
+    const counts = claims.reduce((acc, c) => {
+      acc[c.status] = (acc[c.status] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([name, value]) => ({ name: humanize(name), value }));
+  }, [claims]);
+  
+  const claimStageData = useMemo(() => {
+    const counts = claims.reduce((acc, c) => {
+      acc[c.stage] = (acc[c.stage] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([name, count]) => ({ name: humanize(name), count }));
+  }, [claims]);
+
+  const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#64748b'];
 
   const loadClaims = useCallback(async () => {
     try {
@@ -439,7 +459,7 @@ function CustomerClaimsPage() {
 
   return (
     <PageShell title="Claims Dashboard" eyebrow="Customer Claims">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         <DashboardCard eyebrow="Policy Holder" title={user?.fullName || 'Customer'}>
           <p className="text-sm text-slate-500">Create new claims against your purchased policies and upload the required PDFs.</p>
         </DashboardCard>
@@ -451,7 +471,43 @@ function CustomerClaimsPage() {
         </DashboardCard>
       </div>
 
-      <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
+      {claims.length > 0 && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">Claims by Status</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={claimStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
+                    {claimStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+          
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">Claims in Progress (Stage)</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={claimStageData} layout="vertical" margin={{ top: 20, right: 30, left: 40, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" axisLine={false} tickLine={false} />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 11}} />
+                  <RechartsTooltip cursor={{fill: 'transparent'}} />
+                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={30} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </div>
+      )}
+
+      <section className="mt-6 rounded-md border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-ink-900">My Claims</h3>

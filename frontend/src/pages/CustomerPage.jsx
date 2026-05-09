@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { ShieldCheck, ShoppingBag, RefreshCw } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import DashboardCard from '../components/ui/DashboardCard.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import PageShell from '../components/ui/PageShell.jsx';
@@ -64,9 +65,28 @@ function CustomerPage() {
 
   const ownedPolicyIds = new Set(myPolicies.filter((p) => p.active).map((p) => p.policyName));
 
+  // Analytics Data
+  const coverageData = useMemo(() => {
+    return myPolicies.filter(p => p.active).map(p => ({
+      name: p.policyName,
+      coverage: p.coverageAmount,
+      premium: p.premiumAmount
+    }));
+  }, [myPolicies]);
+
+  const typeDistributionData = useMemo(() => {
+    const counts = myPolicies.filter(p => p.active).reduce((acc, p) => {
+      acc[p.policyType] = (acc[p.policyType] || 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).map(([name, value]) => ({ name: TYPE_LABELS[name] || name, value }));
+  }, [myPolicies]);
+  
+  const PIE_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b'];
+
   return (
     <PageShell title="Customer Dashboard" eyebrow="Customer Portal">
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         <DashboardCard eyebrow="Welcome" title={user?.fullName}>
           <p className="text-sm text-slate-500">Manage your policies and coverage.</p>
         </DashboardCard>
@@ -77,6 +97,42 @@ function CustomerPage() {
           <p className="text-sm text-slate-500">Browse and purchase coverage.</p>
         </DashboardCard>
       </div>
+
+      {myPolicies.filter(p => p.active).length > 0 && (
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">Coverage by Policy</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={coverageData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12}} tickFormatter={(val) => `₹${val/1000}k`} />
+                  <RechartsTooltip cursor={{fill: 'transparent'}} formatter={(value) => formatCurrency(value)} />
+                  <Bar dataKey="coverage" name="Coverage Amount" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+          
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">Portfolio Distribution</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={typeDistributionData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
+                    {typeDistributionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="flex gap-1 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
