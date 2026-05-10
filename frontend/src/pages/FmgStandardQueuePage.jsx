@@ -23,7 +23,18 @@ const OCR_STATUS_VARIANTS = { PENDING: 'pending', PROCESSING: 'pending', COMPLET
 const STAGE_VARIANTS = { FMG_REVIEW: 'pending', FMG_MANUAL_REVIEW: 'pending', CARRIER_REVIEW: 'active', COMPLETED: 'expired' };
 const DECISION_VARIANTS = { APPROVED: 'active', REJECTED: 'expired', MANUAL_REVIEW: 'pending' };
 
+function formatDateTime(value) {
+  if (!value) return 'Pending';
+  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+}
 
+function humanize(value) {
+  return value?.toLowerCase().split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}
+
+function extractErrorMessage(error, fallback = 'Unable to complete this action right now.') {
+  return error?.response?.data?.message || fallback;
+}
 
 function FmgStandardQueuePage() {
   const { token } = useAuth();

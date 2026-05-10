@@ -16,7 +16,7 @@ function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-30 border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-sm">
       <div className="mx-auto flex h-16 max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
@@ -24,8 +24,8 @@ function Header() {
               <Activity className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-sm font-bold uppercase tracking-wider text-ink-900 leading-tight">Enterprise TPA</h1>
-              <p className="text-[10px] font-medium text-slate-500 leading-tight">Operations Console</p>
+              <h1 className="text-sm font-bold uppercase tracking-wider text-ink-900 dark:text-slate-100 leading-tight">Enterprise TPA</h1>
+              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-tight">Operations Console</p>
             </div>
           </div>
 
@@ -42,8 +42,8 @@ function Header() {
                   className={({ isActive }) =>
                     `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 ${
                       isActive
-                        ? 'bg-brand-50 text-brand-700 shadow-sm ring-1 ring-brand-200/50'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-ink-900'
+                        ? 'bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-400 shadow-sm ring-1 ring-brand-200/50 dark:ring-brand-700/50'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-ink-900 dark:hover:text-slate-100'
                     }`
                   }
                 >
@@ -57,13 +57,13 @@ function Header() {
 
         <div className="flex items-center gap-4">
           <div className="hidden text-right md:block">
-            <p className="truncate text-sm font-bold text-ink-900">{user?.fullName}</p>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-brand-600">{user?.role}</p>
+            <p className="truncate text-sm font-bold text-ink-900 dark:text-slate-100">{user?.fullName}</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-brand-600 dark:text-brand-400">{user?.role}</p>
           </div>
 
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 transition hover:bg-red-50 dark:hover:bg-red-900/40 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800"
             onClick={handleLogout}
             title="Sign out"
           >

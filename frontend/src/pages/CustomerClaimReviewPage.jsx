@@ -216,7 +216,7 @@ function CustomerClaimReviewPage() {
 
       <TimelineShell entries={activeClaimDetails.timeline || []} />
 
-      <div className="flex h-[calc(100vh-12rem)] min-h-[600px] gap-6">
+      <div className="flex h-[calc(100vh-8rem)] min-h-[850px] gap-6 animate-fade-in-up">
         {/* Screen 1: Document View Panel */}
         <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:w-[60%]">
           <div className="border-b border-slate-100 bg-white px-5 py-4">
@@ -286,7 +286,7 @@ function CustomerClaimReviewPage() {
                 </div>
               )}
 
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm interactive-card transition-all duration-300">
                 <div className="flex flex-wrap gap-2 mb-3">
                   <StatusBadge variant="info">{humanize(activeClaim.status)}</StatusBadge>
                 </div>

@@ -27,7 +27,7 @@ function PolicyCard({ policy, actionLabel, onAction, disabled = false }) {
   const gradient = TYPE_COLORS[policy.policyType] || TYPE_COLORS.HEALTH;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <article className="group flex flex-col overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm transition-shadow hover:shadow-md">
       <div className={`bg-gradient-to-r ${gradient} px-5 py-4`}>
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white">
@@ -41,21 +41,21 @@ function PolicyCard({ policy, actionLabel, onAction, disabled = false }) {
 
       <div className="flex flex-1 flex-col p-5">
         {policy.description && (
-          <p className="mb-3 line-clamp-2 text-sm text-slate-500">{policy.description}</p>
+          <p className="mb-3 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">{policy.description}</p>
         )}
 
         <div className="mt-auto space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Coverage</span>
-            <span className="font-semibold text-ink-900">{formatCurrency(policy.coverageAmount)}</span>
+            <span className="text-slate-500 dark:text-slate-400">Coverage</span>
+            <span className="font-semibold text-ink-900 dark:text-slate-200">{formatCurrency(policy.coverageAmount)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Premium</span>
-            <span className="font-semibold text-ink-900">{formatCurrency(policy.premiumAmount)}</span>
+            <span className="text-slate-500 dark:text-slate-400">Premium</span>
+            <span className="font-semibold text-ink-900 dark:text-slate-200">{formatCurrency(policy.premiumAmount)}</span>
           </div>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Duration</span>
-            <span className="font-medium text-ink-700">
+            <span className="text-slate-500 dark:text-slate-400">Duration</span>
+            <span className="font-medium text-ink-700 dark:text-slate-300">
               {policy.policyDurationMonths >= 12
                 ? `${Math.floor(policy.policyDurationMonths / 12)} Year${Math.floor(policy.policyDurationMonths / 12) > 1 ? 's' : ''}`
                 : `${policy.policyDurationMonths} Month${policy.policyDurationMonths > 1 ? 's' : ''}`}
@@ -63,8 +63,8 @@ function PolicyCard({ policy, actionLabel, onAction, disabled = false }) {
           </div>
           {policy.waitingPeriodDays > 0 && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Waiting Period</span>
-              <span className="font-medium text-ink-700">{policy.waitingPeriodDays} Days</span>
+              <span className="text-slate-500 dark:text-slate-400">Waiting Period</span>
+              <span className="font-medium text-ink-700 dark:text-slate-300">{policy.waitingPeriodDays} Days</span>
             </div>
           )}
         </div>

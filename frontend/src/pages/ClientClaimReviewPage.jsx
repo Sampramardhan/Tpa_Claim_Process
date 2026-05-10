@@ -153,71 +153,81 @@ function ClientClaimReviewPage() {
         </button>
       </div>
 
-      <div className="flex h-[calc(100vh-12rem)] min-h-[600px] flex-col bg-slate-100/50 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-        <div className="border-b border-slate-200 bg-white px-6 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-ink-900">{activeClaim.customerName}</p>
-              <p className="mt-1 text-sm text-slate-500">{activeClaim.policyName} • {activeClaim.carrierName}</p>
-              <p className="mt-2 text-xs text-slate-400">Submitted {formatDateTime(activeClaim.submissionDate)}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <StatusBadge variant={CLAIM_STATUS_VARIANTS[activeClaim.status] || 'info'}>{humanize(activeClaim.status)}</StatusBadge>
+      <TimelineShell entries={activeClaimDetails.timeline || []} />
+
+      <div className="flex h-[calc(100vh-8rem)] min-h-[850px] gap-6 animate-fade-in-up">
+        {/* Left Panel: Document View Panel (60% width) */}
+        <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:w-[60%]">
+          <div className="border-b border-slate-100 bg-white px-5 py-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Document Source</h4>
+                <p className="text-sm font-bold text-slate-800">Original Uploaded File</p>
+              </div>
+              {activeClaimDetails.documents?.length ? (
+                <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+                  {activeClaimDetails.documents.map((document) => (
+                    <button
+                      key={document.id}
+                      type="button"
+                      onClick={() => setSelectedDocumentId(document.id)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
+                        selectedDocumentId === document.id
+                          ? 'bg-white text-brand-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {humanize(document.documentType)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
-        </div>
 
-        <div className="p-6 pb-0">
-          <TimelineShell entries={activeClaimDetails.timeline || []} />
-        </div>
-
-        <div className="grid flex-1 gap-6 overflow-hidden p-6 pt-0 lg:grid-cols-[1.05fr,0.95fr]">
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Uploaded Documents</h4>
-                  <p className="text-sm font-bold text-slate-800">Preview Source Files</p>
-                </div>
-                {activeClaimDetails.documents?.length ? (
-                  <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
-                    {activeClaimDetails.documents.map((document) => (
-                      <button
-                        key={document.id}
-                        type="button"
-                        onClick={() => setSelectedDocumentId(document.id)}
-                        className={`rounded-md px-3 py-1.5 text-xs font-bold transition ${
-                          selectedDocumentId === document.id
-                            ? 'bg-white text-brand-600 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                      >
-                        {humanize(document.documentType)}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+          <div className="relative flex-1 w-full bg-slate-800">
+            {selectedDocumentUrl ? (
+              <DocumentViewer url={selectedDocumentUrl} title="Client Claim Document Preview" />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center p-6 text-center text-slate-500">
+                <FileSearch className="h-12 w-12 opacity-20 text-white" />
+                <p className="mt-2 text-sm text-slate-400">Select a document to preview</p>
               </div>
+            )}
+          </div>
+        </section>
+
+        {/* Right Panel: Data Verification Panel (40% width) */}
+        <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:w-[40%]">
+          <div className="border-b border-slate-100 bg-white px-5 py-4">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Verification Result</h4>
+            <div className="mt-1 flex items-center justify-between">
+              <p className="text-sm font-bold text-slate-800">Deterministic Client Checks</p>
+              <StatusBadge variant={CLAIM_STATUS_VARIANTS[activeClaim.status] || 'info'}>
+                {humanize(activeClaim.status)}
+              </StatusBadge>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-6">
+            {/* Claim Context Info block */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm interactive-card transition-all duration-300">
+              <div className="flex flex-wrap gap-2 mb-3">
+                <StatusBadge variant="info">{humanize(activeClaim.status)}</StatusBadge>
+              </div>
+              <h4 className="text-sm font-bold text-ink-900">{activeClaim.claimNumber || 'Draft Claim'}</h4>
+              <p className="mt-1 text-sm text-brand-600 font-medium">{activeClaim.policyName}</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Submitted {formatDateTime(activeClaim.submissionDate)}
+              </p>
             </div>
 
-            <div className="relative min-h-0 flex-1 bg-slate-800">
-              {selectedDocumentUrl ? (
-                <DocumentViewer url={selectedDocumentUrl} title="Client Claim Document Preview" />
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center p-6 text-center text-slate-400">
-                  <FileSearch className="h-12 w-12 opacity-30" />
-                  <p className="mt-3 text-sm">Select a document to preview</p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="min-h-0 space-y-6 overflow-y-auto pr-1">
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Validation Results block */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm interactive-card transition-all duration-300">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Validation Result</h4>
-                  <p className="text-sm font-bold text-slate-800">Deterministic Client Checks</p>
+                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Checks Summary</h4>
+                  <p className="text-sm font-bold text-slate-800">Verification Checklist</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {activeValidation ? (
@@ -233,13 +243,7 @@ function ClientClaimReviewPage() {
                 </div>
               </div>
 
-              {activeValidation?.validatedAt ? (
-                <p className="mt-4 text-xs text-slate-500">
-                  Last validated by <span className="font-medium text-slate-700">{activeValidation.validatedBy}</span> on {formatDateTime(activeValidation.validatedAt)}
-                </p>
-              ) : null}
-
-              <div className="mt-4 grid gap-3">
+              <div className="grid gap-3">
                 {(activeValidation?.checks || []).map((check) => (
                   <div
                     key={check.code}
@@ -265,22 +269,11 @@ function ClientClaimReviewPage() {
                     </div>
                   </div>
                 ))}
-                {!activeValidation?.checks?.length ? (
-                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                    Run validation to view the client review checklist.
-                  </div>
-                ) : null}
               </div>
-
-              {activeValidation?.rejectionReason ? (
-                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  <p className="font-semibold text-red-800">Stored rejection reason</p>
-                  <p className="mt-1">{activeValidation.rejectionReason}</p>
-                </div>
-              ) : null}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            {/* OCR Extracted Data block */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm interactive-card transition-all duration-300">
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">OCR Extracted Data</h4>
                 <p className="text-sm font-bold text-slate-800">Structured Claim Summary</p>
@@ -303,10 +296,8 @@ function ClientClaimReviewPage() {
                 <ReviewField label="Diagnosis" value={activeClaimDetails.extractedData?.diagnosis} multiline />
               </div>
             </section>
-
-
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </PageShell>
   );

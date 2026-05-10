@@ -37,15 +37,15 @@ function Modal({ open, onClose, title, children, wide = false }) {
       }}
     >
       <div
-        className={`relative mx-4 flex max-h-[95vh] flex-col rounded-2xl border border-slate-200 bg-white shadow-shell ${wide ? 'h-[620px] w-full max-w-[1200px]' : 'w-full max-w-lg overflow-y-auto'
+        className={`relative mx-4 flex max-h-[95vh] flex-col rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-shell ${wide ? 'h-[620px] w-full max-w-[1200px]' : 'w-full max-w-lg overflow-y-auto'
           }`}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-          <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-6 py-4">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{title}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 dark:text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300"
             aria-label="Close"
           >
             <X className="h-5 w-5" />

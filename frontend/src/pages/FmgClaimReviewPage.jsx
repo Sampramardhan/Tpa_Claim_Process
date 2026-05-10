@@ -206,38 +206,83 @@ function FmgClaimReviewPage() {
         </button>
       </div>
 
-      <div className="flex flex-col bg-slate-100/50 rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-[calc(100vh-12rem)] min-h-[700px]">
-        <div className="border-b border-slate-200 bg-white px-6 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-ink-900">{activeClaim.customerName}</p>
-              <p className="mt-1 text-sm text-slate-500">{activeClaim.policyName} | {activeClaim.carrierName}</p>
-              <p className="mt-2 text-xs text-slate-400">Submitted {formatDateTime(activeClaim.submissionDate)}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <StatusBadge variant={CLAIM_STATUS_VARIANTS[activeClaim.status] || 'info'}>{humanize(activeClaim.status)}</StatusBadge>
+      <TimelineShell entries={activeClaimDetails.timeline || []} />
+
+      <div className="flex h-[calc(100vh-8rem)] min-h-[850px] gap-6 animate-fade-in-up">
+        {/* Left Panel: Document View Panel (60% width) */}
+        <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:w-[60%]">
+          <div className="border-b border-slate-100 bg-white px-5 py-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Document Source</h4>
+                <p className="text-sm font-bold text-slate-800">Original Uploaded File</p>
+              </div>
+              {activeClaimDetails.documents?.length ? (
+                <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+                  {activeClaimDetails.documents.map((document) => (
+                    <button
+                      key={document.id}
+                      type="button"
+                      onClick={() => setSelectedDocumentId(document.id)}
+                      className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
+                        selectedDocumentId === document.id
+                          ? 'bg-white text-brand-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {humanize(document.documentType)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
-        </div>
 
-        <div className="p-6 pb-0">
-          <TimelineShell entries={activeClaimDetails.timeline || []} />
-        </div>
+          <div className="relative flex-1 w-full bg-slate-800">
+            {selectedDocumentId ? (
+              <DocumentViewer 
+                url={getFmgDocumentViewUrl(id, selectedDocumentId, token)} 
+                title="FMG Claim Document Preview" 
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center p-6 text-center text-slate-500">
+                <FileSearch className="h-12 w-12 opacity-20 text-white" />
+                <p className="mt-2 text-sm text-slate-400">Select a document to preview</p>
+              </div>
+            )}
+          </div>
+        </section>
 
-        <div className="grid flex-1 gap-6 overflow-hidden p-6 pt-0 lg:grid-cols-[1fr,1fr]">
-          <DocumentPanel 
-            title="Document Preview" 
-            claimDetails={activeClaimDetails}
-            selectedDocumentId={selectedDocumentId}
-            onSelectDocument={setSelectedDocumentId}
-            url={selectedDocumentId ? getFmgDocumentViewUrl(id, selectedDocumentId, token) : null} 
-          />
+        {/* Right Panel: Data Summary & Actions Panel (40% width) */}
+        <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:w-[40%]">
+          <div className="border-b border-slate-100 bg-white px-5 py-4">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">FMG Audit</h4>
+            <div className="mt-1 flex items-center justify-between">
+              <p className="text-sm font-bold text-slate-800">Rule Engine & Override Controls</p>
+              <StatusBadge variant={CLAIM_STATUS_VARIANTS[activeClaim.status] || 'info'}>
+                {humanize(activeClaim.status)}
+              </StatusBadge>
+            </div>
+          </div>
 
-          <section className="min-h-0 space-y-6 overflow-y-auto pr-1">
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-6">
             {reviewError ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{reviewError}</div> : null}
             {reviewSuccess ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{reviewSuccess}</div> : null}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            {/* Claim Context Info block */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm interactive-card transition-all duration-300">
+              <div className="flex flex-wrap gap-2 mb-3">
+                <StatusBadge variant="info">{humanize(activeClaim.status)}</StatusBadge>
+              </div>
+              <h4 className="text-sm font-bold text-ink-900">{activeClaim.claimNumber || 'Draft Claim'}</h4>
+              <p className="mt-1 text-sm text-brand-600 font-medium">{activeClaim.policyName}</p>
+              <p className="mt-2 text-xs text-slate-500">
+                Submitted {formatDateTime(activeClaim.submissionDate)}
+              </p>
+            </div>
+
+            {/* Validation / Summary block */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm interactive-card transition-all duration-300">
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Claim Summary</h4>
                 <p className="text-sm font-bold text-slate-800">Customer, Policy, and Workflow Snapshot</p>
@@ -254,6 +299,7 @@ function FmgClaimReviewPage() {
               </div>
             </section>
 
+            {/* Actions Panel */}
             {activeClaim?.stage === 'FMG_MANUAL_REVIEW' ? (
               <FmgManualReviewPanel
                 manualReview={activeClaimDetails.manualReview}
@@ -262,10 +308,10 @@ function FmgClaimReviewPage() {
                 onSubmit={handleSubmitManualReview}
               />
             ) : activeClaim?.stage === 'FMG_REVIEW' ? (
-              <>
+              <div className="space-y-6">
                 <FmgRuleEvaluationPanel decision={activeDecision} evaluating={actionLoading === 'evaluate'} disabled={!canEvaluateClaim || Boolean(actionLoading && actionLoading !== 'evaluate')} onEvaluate={handleEvaluateClaim} />
                 <FmgDecisionActionPanel decision={activeDecision} actionLoading={actionLoading} onConfirm={handleConfirmDecision} />
-              </>
+              </div>
             ) : (
               <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
                 <p className="text-sm font-semibold text-blue-800">FMG Review Completed</p>
@@ -273,7 +319,8 @@ function FmgClaimReviewPage() {
               </div>
             )}
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            {/* OCR Extracted Data block */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm interactive-card transition-all duration-300">
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">OCR Extracted Data</h4>
                 <p className="text-sm font-bold text-slate-800">Structured Claim Summary</p>
@@ -294,9 +341,8 @@ function FmgClaimReviewPage() {
               </div>
               <div className="mt-3"><ReviewField label="Diagnosis" value={activeClaimDetails.extractedData?.diagnosis} multiline /></div>
             </section>
-
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </PageShell>
   );
