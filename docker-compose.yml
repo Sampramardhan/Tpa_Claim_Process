@@ -18,5 +18,53 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tpa-claim-process-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SERVER_SERVLET_CONTEXT_PATH=/api/v1
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB:-tpa_claims}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER:-tpa_user}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-tpa_password}
+      - SPRING_JPA_DEFAULT_SCHEMA=${SPRING_JPA_DEFAULT_SCHEMA:-claim_schema}
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=${SPRING_JPA_HIBERNATE_DDL_AUTO:-none}
+      - SPRING_SQL_INIT_MODE=${SPRING_SQL_INIT_MODE:-never}
+      - TPA_JWT_SECRET=${TPA_JWT_SECRET}
+      - TPA_CORS_ALLOWED_ORIGINS=${TPA_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:5175}
+      - TPA_STATIC_CLIENT_EMAIL=${TPA_STATIC_CLIENT_EMAIL}
+      - TPA_STATIC_CLIENT_PASSWORD=${TPA_STATIC_CLIENT_PASSWORD}
+      - TPA_STATIC_FMG_EMAIL=${TPA_STATIC_FMG_EMAIL}
+      - TPA_STATIC_FMG_PASSWORD=${TPA_STATIC_FMG_PASSWORD}
+      - TPA_STATIC_CARRIER_EMAIL=${TPA_STATIC_CARRIER_EMAIL}
+      - TPA_STATIC_CARRIER_PASSWORD=${TPA_STATIC_CARRIER_PASSWORD}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - GOOGLE_AI_BASE_URL=${GOOGLE_AI_BASE_URL}
+      - GOOGLE_AI_MODEL=${GOOGLE_AI_MODEL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8080/api/v1
+    container_name: tpa-claim-process-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
+  backend_uploads:
