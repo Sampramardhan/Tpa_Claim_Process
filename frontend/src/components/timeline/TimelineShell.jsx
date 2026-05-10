@@ -18,37 +18,55 @@ function humanize(value) {
 
 function TimelineShell({ entries = [] }) {
   return (
-    <section className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-brand-600">Timeline</p>
-          <h3 className="mt-1 text-lg font-semibold text-ink-900">Status History</h3>
-        </div>
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mb-6 w-full">
+      <div className="mb-8">
+        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Claim Timeline</h3>
+        <p className="text-sm font-bold text-slate-800">Status & Workflow Progress</p>
       </div>
 
-      <ol className="mt-6 space-y-5">
+      <div className="relative">
         {entries.length === 0 ? (
-          <li className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+          <div className="rounded-md border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
             Timeline entries will appear here.
-          </li>
+          </div>
         ) : (
-          entries.map((entry, index) => (
-            <li key={`${entry.stage}-${entry.status}-${index}`} className="relative flex gap-3">
-              <span className="mt-1 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-brand-100">
-                <span className="h-2.5 w-2.5 rounded-full bg-brand-600" />
-              </span>
-              <div className="min-w-0 flex-1 border-b border-slate-100 pb-5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-semibold text-ink-900">{humanize(entry.stage) || 'Pending stage'}</p>
-                  <StatusBadge status={entry.status} />
+          <div className="flex w-full items-start overflow-x-auto pb-4 scrollbar-hide">
+            {entries.map((entry, index) => {
+              const isFirst = index === 0;
+              const isLast = index === entries.length - 1;
+
+              return (
+                <div key={`${entry.stage}-${entry.status}-${index}`} className="relative flex flex-1 flex-col items-center min-w-[150px]">
+                  {/* Connecting Line */}
+                  <div className="absolute top-4 left-0 w-full flex items-center -z-10">
+                    <div className={`h-[2px] w-1/2 ${isFirst ? 'bg-transparent' : 'bg-brand-200'}`}></div>
+                    <div className={`h-[2px] w-1/2 ${isLast ? 'bg-transparent' : 'bg-brand-200'}`}></div>
+                  </div>
+
+                  {/* Node Circle */}
+                  <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 border-2 border-brand-200 z-10">
+                    <span className="h-3 w-3 rounded-full bg-brand-600 shadow-sm" />
+                  </div>
+
+                  {/* Labels */}
+                  <div className="mt-4 flex flex-col items-center text-center px-2">
+                    <p className="text-sm font-bold text-slate-800 leading-tight mb-1">{humanize(entry.stage) || 'Pending stage'}</p>
+                    <StatusBadge status={entry.status} />
+                    <p className="mt-2 text-[10px] uppercase tracking-wider font-semibold text-slate-500 whitespace-nowrap">
+                      {formatDateTime(entry.timestamp)}
+                    </p>
+                    {entry.description && (
+                      <p className="mt-1.5 text-xs text-slate-500 line-clamp-2 max-w-[180px] leading-snug">
+                        {entry.description}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{formatDateTime(entry.timestamp)}</p>
-                {entry.description ? <p className="mt-2 text-sm text-slate-600">{entry.description}</p> : null}
-              </div>
-            </li>
-          ))
+              );
+            })}
+          </div>
         )}
-      </ol>
+      </div>
     </section>
   );
 }

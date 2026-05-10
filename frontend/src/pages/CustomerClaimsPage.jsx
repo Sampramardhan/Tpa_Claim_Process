@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, FileSearch, FileText, Plus, RefreshCw, ScanSearch, Upload } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 import DashboardCard from '../components/ui/DashboardCard.jsx';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import PageShell from '../components/ui/PageShell.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
-import DocumentViewer from '../components/claims/DocumentViewer.jsx';
-import TimelineShell from '../components/timeline/TimelineShell.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { createClaim, getDocumentViewUrl, getMyClaim, getMyClaims, submitClaim, updateClaimExtractedData } from '../services/api/claimApi.js';
 import { getMyPolicies } from '../services/api/policyApi.js';
@@ -45,22 +44,7 @@ const OCR_STATUS_VARIANTS = {
   FAILED: 'expired',
 };
 
-const EMPTY_EXTRACTED_FORM = {
-  policyNumber: '',
-  customerName: '',
-  patientName: '',
-  carrierName: '',
-  policyName: '',
-  hospitalName: '',
-  admissionDate: '',
-  dischargeDate: '',
-  claimedAmount: '',
-  claimType: '',
-  diagnosis: '',
-  billNumber: '',
-  billDate: '',
-  totalBillAmount: '',
-};
+
 
 function formatDateTime(value) {
   if (!value) return 'Pending';
@@ -94,35 +78,11 @@ function isDraftClaim(claim) {
   return claim?.status === 'DRAFT' && claim?.stage === 'DRAFT';
 }
 
-function buildEditableForm(extractedData) {
-  if (!extractedData) {
-    return { ...EMPTY_EXTRACTED_FORM };
-  }
 
-  return {
-    policyNumber: extractedData.policyNumber || '',
-    customerName: extractedData.customerName || '',
-    patientName: extractedData.patientName || '',
-    carrierName: extractedData.carrierName || '',
-    policyName: extractedData.policyName || '',
-    hospitalName: extractedData.hospitalName || '',
-    admissionDate: extractedData.admissionDate || '',
-    dischargeDate: extractedData.dischargeDate || '',
-    claimedAmount: extractedData.claimedAmount ?? '',
-    claimType: extractedData.claimType || '',
-    diagnosis: extractedData.diagnosis || '',
-    billNumber: extractedData.billNumber || '',
-    billDate: extractedData.billDate || '',
-    totalBillAmount: extractedData.totalBillAmount ?? '',
-  };
-}
-
-function toNullableNumber(value) {
-  return value === '' ? null : Number(value);
-}
 
 function CustomerClaimsPage() {
   const { user, token } = useAuth();
+  const navigate = useNavigate();
   const [claims, setClaims] = useState([]);
   const [policies, setPolicies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -134,16 +94,10 @@ function CustomerClaimsPage() {
   const [claimForm, setClaimForm] = useState(null);
   const [hospitalDocument, setHospitalDocument] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [savingExtractedData, setSavingExtractedData] = useState(false);
-  const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [formError, setFormError] = useState('');
   const [extractionError, setExtractionError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [extractedForm, setExtractedForm] = useState({ ...EMPTY_EXTRACTED_FORM });
-  const [selectedDocumentId, setSelectedDocumentId] = useState(null);
-  const [isSubmitConfirmOpen, setIsSubmitConfirmOpen] = useState(false);
-  const [submitConfirmationError, setSubmitConfirmationError] = useState('');
   const [activeTab, setActiveTab] = useState('active');
 
   const activeClaimsList = claims.filter(c => c.status !== 'PAID' && c.status !== 'REJECTED');
@@ -197,26 +151,15 @@ function CustomerClaimsPage() {
     const data = await getMyClaim(claimId);
     setActiveClaimDetails(data);
 
-    if (data?.extractedData) {
-      setExtractedForm(buildEditableForm(data.extractedData));
-      if (isTerminalOcrStatus(data.extractedData.ocrStatus)) {
-        setWorkflowStep('review');
-      } else {
-        setWorkflowStep('processing');
-      }
+    if (data?.extractedData && isTerminalOcrStatus(data.extractedData.ocrStatus)) {
+      setIsWorkflowModalOpen(false);
+      navigate(`/customer/claims/${claimId}`);
     } else {
-      setExtractedForm({ ...EMPTY_EXTRACTED_FORM });
       setWorkflowStep('processing');
     }
 
-    if (data?.documents?.length > 0) {
-      setSelectedDocumentId(data.documents[0].id);
-    } else {
-      setSelectedDocumentId(null);
-    }
-
     return data;
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     setLoading(true);
@@ -251,7 +194,6 @@ function CustomerClaimsPage() {
     setUploadProgress(0);
     setFormError('');
     setExtractionError('');
-    setExtractedForm({ ...EMPTY_EXTRACTED_FORM });
   };
 
   const openCreateModal = () => {
@@ -259,53 +201,43 @@ function CustomerClaimsPage() {
     setSuccessMessage('');
     setActiveClaimId(null);
     setActiveClaimDetails(null);
-    setIsSubmitConfirmOpen(false);
-    setSubmitConfirmationError('');
     setWorkflowStep('create');
     setIsWorkflowModalOpen(true);
   };
 
   const closeWorkflowModal = (force = false) => {
-    if (!force && (submitting || savingExtractedData || finalSubmitting || isSubmitConfirmOpen)) return;
+    if (!force && submitting) return;
     setIsWorkflowModalOpen(false);
     setWorkflowStep('create');
     setActiveClaimId(null);
     setActiveClaimDetails(null);
-    setSelectedDocumentId(null);
-    setIsSubmitConfirmOpen(false);
-    setSubmitConfirmationError('');
     resetCreateForm();
-  };
-
-  const closeSubmitConfirmation = (force = false) => {
-    if (!force && finalSubmitting) {
-      return;
-    }
-
-    setIsSubmitConfirmOpen(false);
-    setSubmitConfirmationError('');
   };
 
   const openClaimReview = async (claimId) => {
     setSuccessMessage('');
     setFormError('');
     setExtractionError('');
-    setSubmitConfirmationError('');
-    setIsSubmitConfirmOpen(false);
-    setActiveClaimId(claimId);
-    setActiveClaimDetails(null);
-    setWorkflowStep('processing');
-    setIsWorkflowModalOpen(true);
+    
+    const claim = claims.find(c => c.id === claimId);
+    if (!claim) return;
+    
+    if (claim.status === 'DRAFT' && !isTerminalOcrStatus(claim.ocrStatus)) {
+      setActiveClaimId(claimId);
+      setActiveClaimDetails(null);
+      setWorkflowStep('processing');
+      setIsWorkflowModalOpen(true);
 
-    try {
-      const data = await loadClaimDetails(claimId);
-      if (!data?.extractedData) {
-        setExtractionError('No OCR extraction record is available for this claim yet.');
-        setWorkflowStep('review');
+      try {
+        const data = await loadClaimDetails(claimId);
+        if (!data?.extractedData) {
+          setExtractionError('No OCR extraction record is available for this claim yet.');
+        }
+      } catch (error) {
+        setExtractionError(extractErrorMessage(error));
       }
-    } catch (error) {
-      setExtractionError(extractErrorMessage(error));
-      setWorkflowStep('review');
+    } else {
+      navigate(`/customer/claims/${claimId}`);
     }
   };
 
@@ -359,87 +291,7 @@ function CustomerClaimsPage() {
     }
   };
 
-  const handleExtractedFieldChange = (field, value) => {
-    setExtractedForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
 
-  const buildExtractedDataPayload = () => ({
-    policyNumber: extractedForm.policyNumber || null,
-    customerName: extractedForm.customerName || null,
-    patientName: extractedForm.patientName || null,
-    carrierName: extractedForm.carrierName || null,
-    policyName: extractedForm.policyName || null,
-    hospitalName: extractedForm.hospitalName || null,
-    admissionDate: extractedForm.admissionDate || null,
-    dischargeDate: extractedForm.dischargeDate || null,
-    claimedAmount: toNullableNumber(extractedForm.claimedAmount),
-    claimType: extractedForm.claimType || null,
-    diagnosis: extractedForm.diagnosis || null,
-    billNumber: extractedForm.billNumber || null,
-    billDate: extractedForm.billDate || null,
-    totalBillAmount: toNullableNumber(extractedForm.totalBillAmount),
-  });
-
-  const handleSaveExtractedData = async (event) => {
-    event.preventDefault();
-    if (!activeClaimId || !isDraftClaim(activeClaimDetails?.claim)) {
-      return;
-    }
-
-    setSavingExtractedData(true);
-    setFormError('');
-    setExtractionError('');
-    setSubmitConfirmationError('');
-
-    try {
-      await updateClaimExtractedData(activeClaimId, buildExtractedDataPayload());
-      await loadClaims();
-      setSuccessMessage('Draft claim data saved successfully.');
-      closeWorkflowModal(true);
-    } catch (error) {
-      setExtractionError(extractErrorMessage(error));
-    } finally {
-      setSavingExtractedData(false);
-    }
-  };
-
-  const handleOpenSubmitConfirmation = () => {
-    if (!activeClaimId || !isDraftClaim(activeClaimDetails?.claim) || !isTerminalOcrStatus(activeClaimDetails?.extractedData?.ocrStatus)) {
-      return;
-    }
-
-    setSubmitConfirmationError('');
-    setIsSubmitConfirmOpen(true);
-  };
-
-  const handleConfirmSubmit = async () => {
-    if (!activeClaimId || !isDraftClaim(activeClaimDetails?.claim)) {
-      return;
-    }
-
-    setFinalSubmitting(true);
-    setFormError('');
-    setExtractionError('');
-    setSubmitConfirmationError('');
-
-    try {
-      await updateClaimExtractedData(activeClaimId, buildExtractedDataPayload());
-      const submittedClaim = await submitClaim(activeClaimId);
-      await loadClaims();
-      setSuccessMessage(`Claim ${submittedClaim.claimNumber} submitted successfully and moved to client review.`);
-      closeSubmitConfirmation(true);
-      closeWorkflowModal(true);
-    } catch (error) {
-      const message = extractErrorMessage(error);
-      setExtractionError(message);
-      setSubmitConfirmationError(message);
-    } finally {
-      setFinalSubmitting(false);
-    }
-  };
 
   const activeClaim = activeClaimDetails?.claim;
   const activeOcrStatus = activeClaimDetails?.extractedData?.ocrStatus;
@@ -494,13 +346,15 @@ function CustomerClaimsPage() {
             <h3 className="text-lg font-semibold text-ink-900 mb-4">Claims in Progress (Stage)</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={claimStageData} layout="vertical" margin={{ top: 20, right: 30, left: 40, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" axisLine={false} tickLine={false} />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 11}} />
-                  <RechartsTooltip cursor={{fill: 'transparent'}} />
-                  <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={30} />
-                </BarChart>
+                <PieChart>
+                  <Pie data={claimStageData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="count">
+                    {claimStageData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend />
+                </PieChart>
               </ResponsiveContainer>
             </div>
           </section>
@@ -733,284 +587,9 @@ function CustomerClaimsPage() {
               </div>
             ) : null}
           </div>
-        ) : (
-          <div className="bg-slate-100/50 h-full p-6">
-            <div className="flex h-full gap-6">
-              {/* Screen 1: Document View Panel */}
-              <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:w-[60%]">
-                <div className="border-b border-slate-100 bg-white px-5 py-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Document Source</h4>
-                      <p className="text-sm font-bold text-slate-800">Original Uploaded File</p>
-                    </div>
-                    {activeClaimDetails?.documents?.length > 0 && (
-                      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
-                        {activeClaimDetails.documents.map((doc) => (
-                          <button
-                            key={doc.id}
-                            type="button"
-                            onClick={() => setSelectedDocumentId(doc.id)}
-                            className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
-                              selectedDocumentId === doc.id
-                                ? 'bg-white text-brand-600 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                          >
-                            {humanize(doc.documentType)}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="relative flex-1 w-full bg-slate-800">
-                  {selectedDocumentId ? (
-                    <DocumentViewer
-                      url={getDocumentViewUrl(activeClaimId, selectedDocumentId, token)}
-                      title="Claim Document Preview"
-                    />
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center p-6 text-center text-slate-500">
-                      <FileSearch className="h-12 w-12 opacity-20 text-white" />
-                      <p className="mt-2 text-sm text-slate-400">Select a document to preview</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Screen 2: Data Extraction Panel */}
-              <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:w-[40%]">
-                <div className="border-b border-slate-100 bg-white px-5 py-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Extraction Result</h4>
-                  <div className="mt-1 flex items-center justify-between">
-                    <p className="text-sm font-bold text-slate-800">Verification Form</p>
-                    <StatusBadge variant={OCR_STATUS_VARIANTS[activeOcrStatus] || 'info'}>
-                      {humanize(activeOcrStatus || 'PENDING')}
-                    </StatusBadge>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin">
-                  <form className="space-y-8" onSubmit={handleSaveExtractedData}>
-                    {extractionError ? (
-                      <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {extractionError}
-                      </div>
-                    ) : null}
-
-                    {activeClaim ? (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge variant={STATUS_VARIANTS[activeClaim.status] || 'info'}>
-                            {humanize(activeClaim.status)}
-                          </StatusBadge>
-                          <StatusBadge variant={STAGE_VARIANTS[activeClaim.stage] || 'info'}>
-                            {humanize(activeClaim.stage)}
-                          </StatusBadge>
-                        </div>
-                        <div className="mt-3 space-y-1 text-sm text-slate-600">
-                          <p className="font-semibold text-ink-900">{activeClaim.claimNumber}</p>
-                          <p>{activeClaim.policyName}</p>
-                          <p>
-                            {activeClaim.submissionDate
-                              ? `Submitted on ${formatDateTime(activeClaim.submissionDate)}`
-                              : 'Still in draft. Final submission will lock this claim and move it to client review.'}
-                          </p>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {activeClaimLocked ? (
-                      <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                        This claim has already been finally submitted. The extracted fields are now read-only.
-                      </div>
-                    ) : activeOcrStatus === 'FAILED' ? (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="mt-0.5 h-4 w-4" aria-hidden="true" />
-                          <div>
-                            <p className="font-semibold">OCR could not complete automatically.</p>
-                            <p className="mt-1">{activeOcrFailureReason || 'You can still correct the extracted fields manually and submit the claim when ready.'}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                          <span>Review the extracted fields, save the draft if needed, then use Final Submit Claim when you're ready to lock it.</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-6">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 border-l-4 border-brand-500 pl-3">
-                          <h5 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Policy Context</h5>
-                        </div>
-                        <div className="grid gap-4">
-                          <EditableField label="Policy Number" value={extractedForm.policyNumber} onChange={(value) => handleExtractedFieldChange('policyNumber', value)} disabled={activeClaimLocked} />
-                          <EditableField label="Policy Name" value={extractedForm.policyName} onChange={(value) => handleExtractedFieldChange('policyName', value)} disabled={activeClaimLocked} />
-                          <EditableField label="Carrier Name" value={extractedForm.carrierName} onChange={(value) => handleExtractedFieldChange('carrierName', value)} disabled={activeClaimLocked} />
-                          <EditableField label="Claim Type" value={extractedForm.claimType} onChange={(value) => handleExtractedFieldChange('claimType', value)} disabled={activeClaimLocked} />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 border-l-4 border-brand-500 pl-3">
-                          <h5 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Patient & Hospital</h5>
-                        </div>
-                        <div className="grid gap-4">
-                          <EditableField label="Customer Name" value={extractedForm.customerName} onChange={(value) => handleExtractedFieldChange('customerName', value)} disabled={activeClaimLocked} />
-                          <EditableField label="Patient Name" value={extractedForm.patientName} onChange={(value) => handleExtractedFieldChange('patientName', value)} disabled={activeClaimLocked} />
-                          <EditableField label="Hospital Name" value={extractedForm.hospitalName} onChange={(value) => handleExtractedFieldChange('hospitalName', value)} disabled={activeClaimLocked} />
-                          <div className="grid grid-cols-2 gap-4">
-                            <EditableField label="Admission" type="date" value={extractedForm.admissionDate} onChange={(value) => handleExtractedFieldChange('admissionDate', value)} disabled={activeClaimLocked} />
-                            <EditableField label="Discharge" type="date" value={extractedForm.dischargeDate} onChange={(value) => handleExtractedFieldChange('dischargeDate', value)} disabled={activeClaimLocked} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 border-l-4 border-brand-500 pl-3">
-                          <h5 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Financials & Diagnosis</h5>
-                        </div>
-                        <div className="grid gap-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <EditableField label="Claimed Amt" type="number" value={extractedForm.claimedAmount} onChange={(value) => handleExtractedFieldChange('claimedAmount', value)} disabled={activeClaimLocked} />
-                            <EditableField label="Total Bill" type="number" value={extractedForm.totalBillAmount} onChange={(value) => handleExtractedFieldChange('totalBillAmount', value)} disabled={activeClaimLocked} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <EditableField label="Bill No" value={extractedForm.billNumber} onChange={(value) => handleExtractedFieldChange('billNumber', value)} disabled={activeClaimLocked} />
-                            <EditableField label="Bill Date" type="date" value={extractedForm.billDate} onChange={(value) => handleExtractedFieldChange('billDate', value)} disabled={activeClaimLocked} />
-                          </div>
-                          <EditableField label="Diagnosis" type="textarea" value={extractedForm.diagnosis} onChange={(value) => handleExtractedFieldChange('diagnosis', value)} disabled={activeClaimLocked} />
-                        </div>
-                      </div>
-
-                      {activeClaimDetails?.timeline?.length ? (
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-2 border-l-4 border-brand-500 pl-3">
-                            <h5 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Claim Timeline</h5>
-                          </div>
-                          <TimelineShell entries={activeClaimDetails.timeline} />
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="sticky bottom-0 -mx-6 -mb-6 mt-10 border-t border-slate-100 bg-slate-50 p-6 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
-                      <div className="flex flex-col gap-3 sm:flex-row">
-                        <button
-                          type="button"
-                          onClick={closeWorkflowModal}
-                          disabled={savingExtractedData || finalSubmitting}
-                          className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-white disabled:opacity-60"
-                        >
-                          {activeClaimLocked ? 'Close' : 'Cancel'}
-                        </button>
-                        {activeClaimLocked ? null : (
-                          <>
-                            <button
-                              type="submit"
-                              disabled={!canSaveDraft || savingExtractedData || finalSubmitting}
-                              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-5 py-2.5 text-sm font-bold text-brand-700 transition hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {savingExtractedData ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                              Save Draft
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleOpenSubmitConfirmation}
-                              disabled={!canFinalSubmit || savingExtractedData || finalSubmitting}
-                              className="flex-[1.2] inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-brand-700 hover:shadow-lg active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {finalSubmitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                              Final Submit Claim
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              </section>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      <Modal open={isSubmitConfirmOpen} onClose={closeSubmitConfirmation} title="Final Submit Claim">
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            This will move the claim from draft to customer submitted, lock further edits, and place it in the client review queue.
-          </p>
-          {activeClaim ? (
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <p className="font-semibold text-ink-900">{activeClaim.claimNumber}</p>
-              <p className="mt-1">{activeClaim.policyName}</p>
-              <p className="mt-2 text-slate-500">Any unsaved extracted field changes will be saved automatically before submission.</p>
-            </div>
-          ) : null}
-          {submitConfirmationError ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {submitConfirmationError}
-            </div>
-          ) : null}
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={closeSubmitConfirmation}
-              disabled={finalSubmitting}
-              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmSubmit}
-              disabled={finalSubmitting}
-              className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {finalSubmitting ? <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="h-4 w-4" aria-hidden="true" />}
-              Confirm Submission
-            </button>
-          </div>
-        </div>
+        ) : null}
       </Modal>
     </PageShell>
-  );
-}
-
-function EditableField({ label, value, onChange, type = 'text', disabled = false }) {
-  const baseClasses = `w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm text-ink-900 shadow-sm transition duration-200 ${
-    disabled
-      ? 'cursor-not-allowed bg-slate-100 text-slate-500'
-      : 'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 hover:border-brand-300'
-  }`;
-
-  return (
-    <label className="space-y-2">
-      <span className="text-sm font-medium text-ink-900">{label}</span>
-      {type === 'textarea' ? (
-        <textarea
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          rows={4}
-          className={baseClasses}
-          disabled={disabled}
-        />
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          className={baseClasses}
-          disabled={disabled}
-        />
-      )}
-    </label>
   );
 }
 
