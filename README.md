@@ -19,7 +19,7 @@ This document serves as the comprehensive architecture blueprint, HLD, and LLD g
    - [FMG Manual Review Module](#fmg-manual-review-module)
    - [Carrier Settlement Module](#carrier-settlement-module)
    - [PDF Generator & Reporter Module](#pdf-generator--reporter-module)
-5. [Claim State Machine & Sequence Diagrams](#5-claim-state-machine--sequence-diagrams)
+5. [Claim State Machine Flow Diagram](#5-claim-state-machine-flow-diagram)
 6. [Database Architecture & Entity Relationships (ERD)](#6-database-architecture--entity-relationships-erd)
 7. [Local Deployment & Execution Guide](#7-local-deployment--execution-guide)
 
@@ -268,46 +268,45 @@ classDiagram
 
 ---
 
-## 5. Claim State Machine & Sequence Diagrams
+## 5. Claim State Machine Flow Diagram
 
-Here is the sequential flow of asynchronous and synchronous actions triggered when a claim is processed:
+This flow diagram illustrates the dynamic state and stage transitions a claim goes through from creation to final settlement:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor Customer as 👤 Customer
-    participant API as ⚙️ Spring API
-    participant DB as 💾 Database (PostgreSQL)
-    participant OCR as 🤖 OCR Engine (Asynchronous)
-    actor Client as 💼 Client Admin
-    actor FMG as 🛡️ FMG Group
-    actor Carrier as 🏦 Carrier Bank
-
-    Customer->>API: 1. POST /customer/claims (Upload Draft)
-    API->>DB: Save Claim (Draft) & Documents
-    API-->>Customer: Return Draft Confirmation
-    API->>OCR: Trigger Async OCR Event
-    OCR->>DB: Write Extracted OCR Data (Completed)
+stateDiagram-v2
+    direction TB
     
-    Customer->>API: 2. POST /customer/claims/{id}/submit
-    API->>DB: Set Stage = CLIENT_REVIEW
+    [*] --> DRAFT : Customer Creates Draft & Uploads Documents
+    DRAFT --> DRAFT : Async OCR Extraction Runs
     
-    Client->>API: 3. POST /client/claims/{id}/validate (Verify Data)
-    API->>DB: Set Stage = FMG_REVIEW
+    state "CLIENT_REVIEW Stage" as CR
+    DRAFT --> CR : Customer Submits Claim
     
-    FMG->>API: 4. POST /fmg/claims/{id}/evaluate (Rule Run)
-    API->>DB: Trigger Automated Decisions & Rule Checklist Logs
-    alt Rule engine recommends MANUAL_REVIEW
-        FMG->>API: Confirm Manual Evaluation Decisions & Notes
-    end
-    API->>DB: Set Stage = CARRIER_REVIEW
+    CR --> REJECTED : Client Pre-Validation Fails
     
-    Carrier->>API: 5. POST /carrier/claims/{id}/approve (Or Reject)
-    API->>DB: Update State to PAID / REJECTED (Stage = COMPLETED)
+    state "FMG_REVIEW Stage" as FR
+    CR --> FR : Client Pre-Validation Passes
     
-    Customer->>API: 6. GET /customer/claims/{id}/report
-    API->>DB: Query Extracted Data, Rules Engine & Manual Overrule Notes
-    API-->>Customer: Stream Branded PDF Settlement Report
+    state "FMG_MANUAL_REVIEW Stage" as FMR
+    FR --> FMR : Rule Engine Requires Manual Check
+    
+    FR --> REJECTED : Rule Engine Auto-Rejects
+    
+    state "CARRIER_REVIEW Stage" as CAR
+    FR --> CAR : Rule Engine Auto-Approves
+    FMR --> CAR : FMG Reviewer Approves
+    FMR --> REJECTED : FMG Reviewer Rejects
+    
+    state "COMPLETED Stage" as COMPLETED {
+        PAID
+        REJECTED
+    }
+    
+    CAR --> PAID : Carrier Approves Payment
+    CAR --> REJECTED : Carrier Declines
+    
+    PAID --> [*] : PDF Report Generated
+    REJECTED --> [*] : PDF Report Generated
 ```
 
 ---
