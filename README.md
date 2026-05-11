@@ -30,44 +30,59 @@ TPAs act as critical intermediaries in the insurance ecosystem. They process hea
 
 ### The Four Core Personas
 
+We define four distinct actors within the TPA ecosystem, each playing a vital role in completing a claim's lifecycle:
+
+| Persona | Responsibility | Main UI Features |
+| :--- | :--- | :--- |
+| **👤 Customer** | Registers medical drafts, uploads documents, verifies extracted OCR data, and monitors claim progress. | Claim Submission, OCR Review Panel, PDF Report Download |
+| **💼 Client Admin** | Represents the primary employer/insurer. Pre-validates basic credentials and policy boundaries. | Active Pre-Validation Queue, Policy Verification Grid |
+| **🛡️ FMG (Fraud Group)** | Fraud Management Group. Performs automated audit rule analysis and manual checklists. | Auto-Trigger Diagnostics, Rule Engine Catalog, Checklists |
+| **🏦 Carrier Underwriter** | The insurance carrier/bank. Audits the finalized file and releases the cash disbursement. | Settlement Console, Disbursement History |
+
 ```mermaid
-grid
-    customer["👤 CUSTOMER<br/>Submits medical draft, checks OCR, reviews progress, and downloads final PDF report."]
-    client["💼 CLIENT ADMIN<br/>Pre-validates claims against initial policy boundaries."]
-    fmg["🛡️ FMG (Fraud Management Group)<br/>Executes 10 automated rules, performs manual check-lists, audits claims."]
-    carrier["🏦 CARRIER UNDERWRITER<br/>Settles final financial bank disbursements or issues official declines."]
+flowchart LR
+    Customer["👤 Customer\n(Uploads & Drafts)"] ──> Client["💼 Client Admin\n(Pre-Validation)"]
+    Client ──> FMG["🛡️ FMG Group\n(Rule Engine & Audit)"]
+    FMG ──> Carrier["🏦 Carrier Bank\n(Final Settlement)"]
+
+    style Customer fill:#eff6ff,stroke:#1d4ed8,stroke-width:1px
+    style Client fill:#fef3c7,stroke:#d97706,stroke-width:1px
+    style FMG fill:#f5f3ff,stroke:#7c3aed,stroke-width:1px
+    style Carrier fill:#ecfdf5,stroke:#059669,stroke-width:1px
 ```
 
 ---
 
 ## 2. High-Level Design (HLD) Architecture
 
-The application is structured as a **decoupled, multi-tier full-stack system** containerized using Docker.
+The application is built upon a **highly scalable, decoupled multi-tier architecture** containerized with Docker.
 
-```text
-┌────────────────────────────────────────────────────────────────────────┐
-│                        frontend (React, Vite, Tailwind CSS)            │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ HTTP REST / JSON / Multipart
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                        backend (Spring Boot JRE 17)                    │
-│   ┌────────────────────────────────────────────────────────────────┐   │
-│   │  Spring Security (JWT, State-Free, Role-Based Access Control)  │   │
-│   ├────────────────────────────────────────────────────────────────┤   │
-│   │  Core API (Controllers -> Service Layers -> JPA Repositories)  │   │
-│   ├────────────────────────────────────────────────────────────────┤   │
-│   │  Rule Engine (Decoupled Rules Catalogue Framework)             │   │
-│   └────────────────────────────────────────────────────────────────┘   │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ JDBC / JPA Hibernate
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                        database (PostgreSQL 15)                        │
-└────────────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    UI["💻 React Frontend\n(Vite, Tailwind, Lucide React)"]
+    
+    subgraph Spring Boot Backend ["⚙️ Spring Boot REST Services Engine (JDK 17)"]
+        Sec["🔐 Spring Security Context\n(Stateless JWT, RBAC)"]
+        Ctrl["📱 REST Controllers\n(Customer, Client, FMG, Carrier)"]
+        Srv["🧠 Core Service Layer\n(Ocr, Rules, Decisions, Timelines)"]
+        Repo["📊 Spring Data JPA Layer\n(Hibernate ORM)"]
+        
+        Sec ──> Ctrl ──> Srv ──> Repo
+    end
+    
+    DB[("🐘 PostgreSQL 15\n(Relational Schema Separations)")]
+
+    UI ── "HTTP REST / JSON" ──> Sec
+    Repo ── "JDBC / Connection Pool" ──> DB
+
+    style UI fill:#eff6ff,stroke:#2563eb,stroke-width:2px
+    style Spring Boot Backend fill:#f8fafc,stroke:#64748b,stroke-width:2px,stroke-dasharray: 5 5
+    style DB fill:#ecfdf5,stroke:#059669,stroke-width:2px
 ```
 
 ### Unified Flow & HLD Diagram
 
-This HLD diagram details the exact flow a claim travels, from ingestion to final settlement.
+This flow diagram illustrates how claims transition dynamically through systems and state machines:
 
 ```mermaid
 flowchart TD
@@ -104,20 +119,24 @@ flowchart TD
         N & J -->|Generate PDF Report| O[Downloadable Settlement PDF]
     end
 
-    classDef stage fill:#f1f5f9,stroke:#cbd5e1,stroke-width:2px;
-    classDef success fill:#dcfce7,stroke:#86efac,stroke-width:2px;
-    classDef danger fill:#fee2e2,stroke:#fca5a5,stroke-width:2px;
+    classDef stage fill:#f8fafc,stroke:#cbd5e1,stroke-width:1px;
+    classDef success fill:#f0fdf4,stroke:#86efac,stroke-width:1px;
+    classDef danger fill:#fef2f2,stroke:#fca5a5,stroke-width:1px;
     class A,B,C,D,G,K,I stage;
     class N,O success;
     class F,J danger;
 ```
 
 ### Database Schemas & Multi-Tenant Separation
-The PostgreSQL database uses schema grouping to secure and isolate business units:
-- **`auth_schema`**: Stores credential profiles, roles, and session maps.
-- **`claim_schema`**: Manages all transactional states (`claims`, `claim_documents`, `extracted_claim_data`, `client_claim_validations`, `fmg_claim_decisions`, `fmg_claim_decision_rules`, `fmg_manual_reviews`, `timeline_entries`).
-- **`carrier_schema`**: Houses active `carriers` and master `insurance_policies`.
-- **`customer_schema`**: Stores personal profiles, contact registries, and `customer_policies`.
+
+PostgreSQL uses modular schema groups to separate operational units securely:
+
+| Schema Name | Responsibility | Key Tables Included |
+| :--- | :--- | :--- |
+| **`auth_schema`** | Stores access control registry and credentials. | `users`, `roles_mapping` |
+| **`claim_schema`** | Manages high-frequency transactional data and audit chains. | `claims`, `claim_documents`, `extracted_claim_data`, `client_claim_validations`, `fmg_claim_decisions`, `fmg_manual_reviews`, `timeline_entries` |
+| **`carrier_schema`** | Holds master policy structures and insurance parameters. | `carriers`, `insurance_policies` |
+| **`customer_schema`** | Maintains personal profiles, identifiers and coverage bindings. | `customers`, `customer_policies` |
 
 ---
 
