@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, FileSearch, ArrowLeft } from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileSearch, ArrowLeft, Download } from 'lucide-react';
 import PageShell from '../components/ui/PageShell.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
 import DocumentViewer from '../components/claims/DocumentViewer.jsx';
@@ -8,7 +8,7 @@ import TimelineShell from '../components/timeline/TimelineShell.jsx';
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import { useAuth } from '../hooks/useAuth.js';
-import { getDocumentViewUrl, getMyClaim, submitClaim, updateClaimExtractedData } from '../services/api/claimApi.js';
+import { getDocumentViewUrl, getMyClaim, submitClaim, updateClaimExtractedData, getClaimReportUrl } from '../services/api/claimApi.js';
 
 const OCR_STATUS_VARIANTS = { PENDING: 'pending', PROCESSING: 'pending', COMPLETED: 'active', FAILED: 'expired' };
 
@@ -205,13 +205,24 @@ function CustomerClaimReviewPage() {
 
   return (
     <PageShell title={activeClaimLocked ? 'Submitted Claim Details' : 'Review Draft Claim'} eyebrow="Customer Claims">
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
         <button
           onClick={() => navigate('/customer/claims')}
           className="inline-flex items-center gap-2 text-sm font-medium text-brand-600 hover:text-brand-700"
         >
           <ArrowLeft className="h-4 w-4" /> Back to My Claims
         </button>
+
+        {activeClaimLocked && ['APPROVED', 'REJECTED', 'PAID'].includes(activeClaim.status) && (
+          <a
+            href={getClaimReportUrl(id, token)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
+          >
+            <Download className="h-4 w-4" /> Download Claim Report
+          </a>
+        )}
       </div>
 
       <TimelineShell entries={activeClaimDetails.timeline || []} />

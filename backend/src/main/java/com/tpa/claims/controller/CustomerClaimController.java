@@ -32,9 +32,11 @@ import java.util.UUID;
 public class CustomerClaimController {
 
     private final ClaimService claimService;
+    private final com.tpa.claims.service.ClaimReportPdfService claimReportPdfService;
 
-    public CustomerClaimController(ClaimService claimService) {
+    public CustomerClaimController(ClaimService claimService, com.tpa.claims.service.ClaimReportPdfService claimReportPdfService) {
         this.claimService = claimService;
+        this.claimReportPdfService = claimReportPdfService;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -97,5 +99,21 @@ public class CustomerClaimController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(mimeType))
                 .body(content);
+    }
+
+    @GetMapping("/{claimId}/report")
+    public ResponseEntity<byte[]> downloadClaimReport(
+            @PathVariable UUID claimId,
+            @AuthenticationPrincipal TpaUserPrincipal principal
+    ) {
+        byte[] pdfBytes = claimReportPdfService.generateClaimReport(claimId, principal.getId());
+        
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "CLM-" + claimId.toString().substring(0, 8) + "-Report.pdf");
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(pdfBytes);
     }
 }

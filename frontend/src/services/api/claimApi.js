@@ -147,3 +147,9 @@ export function getFmgDocumentViewUrl(claimId, documentId, token) {
 export function getCarrierDocumentViewUrl(claimId, documentId, token) {
   return buildDocumentViewUrl('/carrier/claims', claimId, documentId, token);
 }
+
+export function getClaimReportUrl(claimId, token) {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
+  const url = `${baseUrl}/customer/claims/${claimId}/report`;
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}

@@ -9,6 +9,8 @@ RUN mvn package -DskipTests -B
 
 # Stage 2: Production-ready runtime image
 FROM eclipse-temurin:17-jre-alpine
+# Install font libraries required by OpenPDF (AWT font rendering)
+RUN apk add --no-cache fontconfig ttf-dejavu
 WORKDIR /app
 COPY --from=builder /app/target/*.jar app.jar
 # Create uploads directory for documents
