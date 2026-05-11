@@ -41,9 +41,9 @@ We define four distinct actors within the TPA ecosystem, each playing a vital ro
 
 ```mermaid
 flowchart LR
-    Customer["👤 Customer\n(Uploads & Drafts)"] ──> Client["💼 Client Admin\n(Pre-Validation)"]
-    Client ──> FMG["🛡️ FMG Group\n(Rule Engine & Audit)"]
-    FMG ──> Carrier["🏦 Carrier Bank\n(Final Settlement)"]
+    Customer["👤 Customer\n(Uploads & Drafts)"] --> Client["💼 Client Admin\n(Pre-Validation)"]
+    Client --> FMG["🛡️ FMG Group\n(Rule Engine & Audit)"]
+    FMG --> Carrier["🏦 Carrier Bank\n(Final Settlement)"]
 
     style Customer fill:#eff6ff,stroke:#1d4ed8,stroke-width:1px
     style Client fill:#fef3c7,stroke:#d97706,stroke-width:1px
@@ -67,13 +67,13 @@ graph TD
         Srv["🧠 Core Service Layer\n(Ocr, Rules, Decisions, Timelines)"]
         Repo["📊 Spring Data JPA Layer\n(Hibernate ORM)"]
         
-        Sec ──> Ctrl ──> Srv ──> Repo
+        Sec --> Ctrl --> Srv --> Repo
     end
     
     DB[("🐘 PostgreSQL 15\n(Relational Schema Separations)")]
 
-    UI ── "HTTP REST / JSON" ──> Sec
-    Repo ── "JDBC / Connection Pool" ──> DB
+    UI -->|HTTP REST / JSON| Sec
+    Repo -->|JDBC / Connection Pool| DB
 
     style UI fill:#eff6ff,stroke:#2563eb,stroke-width:2px
     style Spring Boot Backend fill:#f8fafc,stroke:#64748b,stroke-width:2px,stroke-dasharray: 5 5
