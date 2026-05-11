@@ -313,7 +313,7 @@ stateDiagram-v2
 
 ## 6. Database Architecture & Entity Relationships (ERD)
 
-This entity relationship diagram displays the core database architecture, explicitly mapped across the four operational schema boundaries:
+This entity relationship diagram displays the core database architecture with high-fidelity detail, showing data types, primary/foreign keys, and cross-schema connections:
 
 ```mermaid
 erDiagram
@@ -323,12 +323,12 @@ erDiagram
     "auth_schema.users" ||--o| "customer_schema.customers" : "identifies"
     
     "auth_schema.users" {
-        uuid id PK
-        string email
-        string password_hash
-        string role
+        varchar id PK
+        varchar email UK
+        varchar password_hash
+        varchar role
         boolean active
-        timestamp created_at
+        datetime created_at
     }
 
     %% ==========================================
@@ -339,19 +339,19 @@ erDiagram
     "customer_schema.customer_policies" ||--o{ "claim_schema.claims" : "insures"
     
     "customer_schema.customers" {
-        uuid id PK
-        uuid user_id FK
-        string first_name
-        string last_name
-        string phone_number
-        timestamp created_at
+        varchar id PK
+        varchar user_id FK
+        varchar first_name
+        varchar last_name
+        varchar phone_number
+        datetime created_at
     }
     
     "customer_schema.customer_policies" {
-        uuid id PK
-        uuid customer_id FK
-        uuid policy_id FK
-        string unique_policy_number UK
+        varchar id PK
+        varchar customer_id FK
+        varchar policy_id FK
+        varchar unique_policy_number UK
         date start_date
         date end_date
         boolean active
@@ -364,118 +364,101 @@ erDiagram
     "carrier_schema.insurance_policies" ||--o{ "customer_schema.customer_policies" : "extends"
     
     "carrier_schema.carriers" {
-        uuid id PK
-        string carrier_name
-        string carrier_code UK
+        varchar id PK
+        varchar carrier_name
+        varchar carrier_code UK
         boolean active
     }
 
     "carrier_schema.insurance_policies" {
-        uuid id PK
-        uuid carrier_id FK
-        string policy_name
-        string policy_type
+        varchar id PK
+        varchar carrier_id FK
+        varchar policy_name
+        varchar policy_type
         boolean active
     }
 
     %% ==========================================
     %% 📋 CLAIM SCHEMA (Core Transactions)
     %% ==========================================
-    "claim_schema.claims" ||--o{ "claim_schema.claim_documents" : "contains"
-    "claim_schema.claims" ||--o| "claim_schema.extracted_claim_data" : "stores"
-    "claim_schema.claims" ||--o| "claim_schema.client_claim_validations" : "logs"
-    "claim_schema.claims" ||--o| "claim_schema.fmg_claim_decisions" : "evaluates"
-    "claim_schema.claims" ||--o{ "claim_schema.timeline_entries" : "audits"
-    
-    "claim_schema.fmg_claim_decisions" ||--o{ "claim_schema.fmg_claim_decision_rules" : "triggers"
-    "claim_schema.claims" ||--o| "claim_schema.fmg_manual_reviews" : "manual-logs"
+    "claim_schema.claims" ||--o{ "claim_schema.claim_documents" : "stores"
+    "claim_schema.claims" ||--o| "claim_schema.extracted_claim_data" : "has"
+    "claim_schema.claims" ||--o| "claim_schema.fmg_claim_decisions" : "receives"
+    "claim_schema.claims" ||--o{ "claim_schema.timeline_entries" : "tracks"
+    "claim_schema.fmg_claim_decisions" ||--o{ "claim_schema.fmg_claim_decision_rules" : "evaluated_by"
 
     "claim_schema.claims" {
-        uuid id PK
-        string claim_number UK
-        uuid customer_id FK
-        uuid customer_policy_id FK
-        string status
-        string stage
-        timestamp submission_date
-        string updated_by
+        varchar id PK
+        varchar customer_id FK
+        varchar customer_policy_id FK
+        varchar claim_number UK
+        varchar status
+        datetime created_at
+        datetime processed_at
+        text decision_reason
+        decimal settlement_amount
+        text carrier_remarks
+        text ai_explanation
+        int approval_chance_percentage
+        json extracted_data_snapshot
     }
     
     "claim_schema.claim_documents" {
-        uuid id PK
-        uuid claim_id FK
-        string document_type
-        string stored_file_path
-        timestamp uploaded_at
+        varchar id PK
+        varchar claim_id FK
+        varchar document_type
+        varchar file_path
+        datetime uploaded_at
     }
 
     "claim_schema.extracted_claim_data" {
-        uuid id PK
-        uuid claim_id FK
-        string hospital_name
-        string patient_name
-        string diagnosis
-        string claim_type
-        date admission_date
-        date discharge_date
-        string bill_number
+        varchar id PK
+        varchar claim_id FK
+        varchar policy_number
+        varchar policy_id
+        varchar customer_name
+        varchar carrier_name
+        varchar policy_name
+        varchar claim_form_patient_name
+        varchar claim_form_hospital_name
+        date claim_form_admission_date
+        date claim_form_discharge_date
+        decimal claimed_amount
+        varchar claim_type
+        varchar diagnosis
+        varchar bill_number
         date bill_date
-        numeric claimed_amount
-        numeric total_bill_amount
-        string ocr_status
+        varchar ocr_status
     }
     
-    "claim_schema.client_claim_validations" {
-        uuid id PK
-        uuid claim_id FK
-        string validation_status
-        string review_decision
-        string rejection_reason
-        string validated_by
-        timestamp validated_at
-    }
-
     "claim_schema.fmg_claim_decisions" {
-        uuid id PK
-        uuid claim_id FK
-        string decision
-        string status_after_decision
-        string stage_after_decision
-        timestamp decided_at
-        string decided_by
-        string final_decision
-        timestamp confirmed_at
-        string confirmed_by
+        varchar id PK
+        varchar claim_id FK
+        varchar decided_by
+        varchar role
+        varchar decision
+        decimal settlement_amount
+        text remarks
+        datetime timestamp
     }
 
     "claim_schema.fmg_claim_decision_rules" {
-        uuid id PK
-        uuid decision_id FK
-        string rule_code
-        string rule_name
-        integer rule_order
-        string rule_outcome
-        string message
-    }
-    
-    "claim_schema.fmg_manual_reviews" {
-        uuid id PK
-        uuid claim_id FK
-        string manual_decision
-        string reviewer_notes
-        string status_after_decision
-        string stage_after_decision
-        timestamp reviewed_at
-        string reviewed_by
+        varchar id PK
+        varchar decision_id FK
+        varchar rule_code
+        varchar rule_name
+        boolean triggered
+        text description
     }
     
     "claim_schema.timeline_entries" {
-        uuid id PK
-        uuid claim_id FK
-        string stage
-        string status
-        string description
-        timestamp timestamp
+        varchar id PK
+        varchar claim_id FK
+        varchar action
+        varchar performed_by
+        varchar role
+        text comments
+        datetime timestamp
     }
 ```
 
