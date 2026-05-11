@@ -313,54 +313,86 @@ stateDiagram-v2
 
 ## 6. Database Architecture & Entity Relationships (ERD)
 
-This entity relationship diagram displays the core database schema design, showing how the transaction models connect:
+This entity relationship diagram displays the core database architecture, explicitly mapped across the four operational schema boundaries:
 
 ```mermaid
 erDiagram
-    users ||--o| customers : "identifies"
-    customers ||--o{ customer_policies : "holds"
-    carriers ||--o{ insurance_policies : "underwrites"
-    insurance_policies ||--o{ customer_policies : "extends"
-    customers ||--o{ claims : "registers"
-    customer_policies ||--o{ claims : "insures"
+    %% ==========================================
+    %% 🔐 AUTH & SECURITY SCHEMA
+    %% ==========================================
+    "auth_schema.users" ||--o| "customer_schema.customers" : "identifies"
     
-    claims ||--o{ claim_documents : "contains"
-    claims ||--o| extracted_claim_data : "stores"
-    claims ||--o| client_claim_validations : "logs"
-    claims ||--o| fmg_claim_decisions : "evaluates"
-    claims ||--o{ timeline_entries : "audits"
-    
-    fmg_claim_decisions ||--o{ fmg_claim_decision_rules : "triggers"
-    claims ||--o| fmg_manual_reviews : "manual-logs"
-
-    users {
+    "auth_schema.users" {
         uuid id PK
         string email
         string password_hash
         string role
     }
-    claims {
+
+    %% ==========================================
+    %% 👤 CUSTOMER SCHEMA
+    %% ==========================================
+    "customer_schema.customers" ||--o{ "customer_schema.customer_policies" : "holds"
+    "customer_schema.customers" ||--o{ "claim_schema.claims" : "registers"
+    "customer_schema.customer_policies" ||--o{ "claim_schema.claims" : "insures"
+    
+    "customer_schema.customers" {
+        uuid id PK
+        uuid user_id FK
+        string full_name
+        string phone_number
+    }
+
+    %% ==========================================
+    %% 🏦 CARRIER SCHEMA
+    %% ==========================================
+    "carrier_schema.carriers" ||--o{ "carrier_schema.insurance_policies" : "underwrites"
+    "carrier_schema.insurance_policies" ||--o{ "customer_schema.customer_policies" : "extends"
+    
+    "carrier_schema.insurance_policies" {
+        uuid id PK
+        uuid carrier_id FK
+        string policy_name
+        string policy_type
+    }
+
+    %% ==========================================
+    %% 📋 CLAIM SCHEMA (Core Transactions)
+    %% ==========================================
+    "claim_schema.claims" ||--o{ "claim_schema.claim_documents" : "contains"
+    "claim_schema.claims" ||--o| "claim_schema.extracted_claim_data" : "stores"
+    "claim_schema.claims" ||--o| "claim_schema.client_claim_validations" : "logs"
+    "claim_schema.claims" ||--o| "claim_schema.fmg_claim_decisions" : "evaluates"
+    "claim_schema.claims" ||--o{ "claim_schema.timeline_entries" : "audits"
+    
+    "claim_schema.fmg_claim_decisions" ||--o{ "claim_schema.fmg_claim_decision_rules" : "triggers"
+    "claim_schema.claims" ||--o| "claim_schema.fmg_manual_reviews" : "manual-logs"
+
+    "claim_schema.claims" {
         uuid id PK
         string claim_number UK
         string status
         string stage
         timestamp submission_date
     }
-    extracted_claim_data {
+    
+    "claim_schema.extracted_claim_data" {
         uuid id PK
         string hospital_name
         string patient_name
         string diagnosis
         numeric claimed_amount
     }
-    fmg_claim_decision_rules {
+    
+    "claim_schema.fmg_claim_decision_rules" {
         uuid id PK
         string rule_code
         string rule_name
         string rule_outcome
         string message
     }
-    fmg_manual_reviews {
+    
+    "claim_schema.fmg_manual_reviews" {
         uuid id PK
         string manual_decision
         string reviewer_notes
