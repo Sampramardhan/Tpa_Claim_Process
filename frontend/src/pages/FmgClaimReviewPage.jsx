@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, FileSearch, ArrowLeft } from 'lucide-react';
+import { RefreshCw, FileSearch, ArrowLeft, XCircle } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import DocumentViewer from '../components/claims/DocumentViewer.jsx';
 import ReviewField from '../components/claims/ReviewField.jsx';
@@ -123,7 +123,20 @@ function FmgClaimReviewPage() {
     try {
       const data = await evaluateFmgClaim(id);
       setActiveClaimDetails(data);
-      setReviewSuccess('FMG evaluation completed. Review the triggered rules, then confirm the final decision.');
+
+      const recommendedDecision = data?.fmgDecision?.recommendedDecision;
+      if (recommendedDecision && !data?.fmgDecision?.confirmed) {
+        setActionLoading(recommendedDecision);
+        try {
+          const confirmedData = await confirmFmgDecision(id, { decision: recommendedDecision });
+          setActiveClaimDetails(confirmedData);
+          setReviewSuccess(`FMG evaluation completed and decision auto-confirmed as ${humanize(recommendedDecision)} successfully.`);
+        } catch (confirmError) {
+          setReviewError(extractErrorMessage(confirmError, 'FMG evaluated, but unable to auto-confirm the decision.'));
+        }
+      } else {
+        setReviewSuccess('FMG evaluation completed.');
+      }
     } catch (error) {
       setReviewError(extractErrorMessage(error, 'Unable to run FMG evaluation right now.'));
     } finally {
@@ -313,9 +326,61 @@ function FmgClaimReviewPage() {
                 <FmgDecisionActionPanel decision={activeDecision} actionLoading={actionLoading} onConfirm={handleConfirmDecision} />
               </div>
             ) : (
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
-                <p className="text-sm font-semibold text-blue-800">FMG Review Completed</p>
-                <p className="mt-1 text-sm text-blue-600">This claim has already been processed by FMG and is now in the {humanize(activeClaim?.stage)} stage.</p>
+              <div className="space-y-4 animate-fade-in-up">
+                {activeClaim?.status === 'REJECTED' ? (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-5 w-5 text-red-600" />
+                      <p className="text-sm font-bold text-red-800">Claim Rejected Outcome</p>
+                    </div>
+
+                    {/* Rejection Cause Details */}
+                    {activeDecision?.recommendedDecision === 'REJECTED' && activeDecision?.triggeredRules?.some(r => r.outcome === 'REJECT') ? (
+                      <div className="rounded-xl bg-white border border-red-100 p-4 space-y-3 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Primary Cause: Automated Rule Engine Rejection</p>
+                        <div className="space-y-2">
+                          {activeDecision.triggeredRules.filter(r => r.outcome === 'REJECT').map((rule) => (
+                            <div key={rule.code} className="text-sm">
+                              <div className="flex items-center gap-2 font-semibold text-slate-800">
+                                <span className="font-mono text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">{rule.code}</span>
+                                <span>{rule.name}</span>
+                              </div>
+                              <p className="mt-1 text-xs text-slate-600 pl-3 border-l-2 border-red-200">{rule.message}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : activeClaimDetails.manualReview?.manualDecision === 'REJECTED' ? (
+                      <div className="rounded-xl bg-white border border-red-100 p-4 space-y-2 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Primary Cause: Manual FMG Reviewer Overrule</p>
+                        <p className="text-sm text-slate-800 font-semibold italic">"{activeClaimDetails.manualReview.reviewerNotes || 'No notes provided.'}"</p>
+                        <p className="text-xs text-slate-500">
+                          Reviewed by {activeClaimDetails.manualReview.reviewedBy || 'FMG Reviewer'} on {formatDateTime(activeClaimDetails.manualReview.reviewedAt)}
+                        </p>
+                      </div>
+                    ) : activeClaimDetails.clientValidation?.validationStatus === 'FAILED' ? (
+                      <div className="rounded-xl bg-white border border-red-100 p-4 space-y-2 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Primary Cause: Client Pre-Validation Failure</p>
+                        <p className="text-sm text-slate-800 font-semibold pl-2 border-l-2 border-red-200">
+                          {activeClaimDetails.clientValidation.rejectionReason || 'Failed to satisfy essential policy validation rules.'}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Validated by {activeClaimDetails.clientValidation.validatedBy || 'Client Administrator'} on {formatDateTime(activeClaimDetails.clientValidation.validatedAt)}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl bg-white border border-red-100 p-4 space-y-1 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Primary Cause: Carrier Settlement Decline</p>
+                        <p className="text-sm text-slate-600">The claim was declined during carrier-stage review or bank processing.</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                    <p className="text-sm font-bold text-emerald-800">FMG Review Approved</p>
+                    <p className="mt-1 text-sm text-emerald-600">This claim has passed FMG checking and is now in the {humanize(activeClaim?.stage)} stage.</p>
+                  </div>
+                )}
               </div>
             )}
 
