@@ -7,10 +7,11 @@ This document serves as the comprehensive architecture blueprint, HLD, and LLD g
 
 ## 📖 Table of Contents
 1. [System Overview & Business Domain](#1-system-overview--business-domain)
-2. [High-Level Design (HLD) Architecture](#2-high-level-design-hld-architecture)
+2. [Technology Stack](#2-technology-stack)
+3. [High-Level Design (HLD) Architecture](#3-high-level-design-hld-architecture)
    - [Unified Flow & HLD Diagram](#unified-flow--hld-diagram)
    - [Database Schemas & Multi-Tenant Separation](#database-schemas--multi-tenant-separation)
-3. [Low-Level Design (LLD) Module Specifications](#3-low-level-design-lld-module-specifications)
+4. [Low-Level Design (LLD) Module Specifications](#4-low-level-design-lld-module-specifications)
    - [Auth & Security Module](#auth--security-module)
    - [OCR & Data Extraction Module](#ocr--data-extraction-module)
    - [Client Validation Module](#client-validation-module)
@@ -18,9 +19,9 @@ This document serves as the comprehensive architecture blueprint, HLD, and LLD g
    - [FMG Manual Review Module](#fmg-manual-review-module)
    - [Carrier Settlement Module](#carrier-settlement-module)
    - [PDF Generator & Reporter Module](#pdf-generator--reporter-module)
-4. [Claim State Machine & Sequence Diagrams](#4-claim-state-machine--sequence-diagrams)
-5. [Database Architecture & Entity Relationships (ERD)](#5-database-architecture--entity-relationships-erd)
-6. [Local Deployment & Execution Guide](#6-local-deployment--execution-guide)
+5. [Claim State Machine & Sequence Diagrams](#5-claim-state-machine--sequence-diagrams)
+6. [Database Architecture & Entity Relationships (ERD)](#6-database-architecture--entity-relationships-erd)
+7. [Local Deployment & Execution Guide](#7-local-deployment--execution-guide)
 
 ---
 
@@ -53,7 +54,32 @@ flowchart LR
 
 ---
 
-## 2. High-Level Design (HLD) Architecture
+## 2. Technology Stack
+
+This system is built using modern, enterprise-ready technologies designed for high performance, maintainability, and security.
+
+### Backend ⚙️
+- **Java 17 (JDK 17)**: Core language.
+- **Spring Boot 3.3**: Framework for REST APIs, dependency injection, and auto-configuration.
+- **Spring Security**: Role-Based Access Control (RBAC) and Stateless JWT authentication.
+- **Spring Data JPA & Hibernate**: ORM for relational database interaction.
+- **OpenPDF**: High-fidelity PDF generation engine for settlement reports.
+- **Google Cloud AI Studio Client (Gemini)**: API integration for OCR and document data extraction.
+
+### Frontend 💻
+- **React 18**: Core UI library.
+- **Vite**: Ultra-fast frontend build tooling.
+- **Tailwind CSS**: Utility-first CSS framework for custom styling and responsive design.
+- **Lucide React**: Crisp, modern icon set.
+
+### Database & Infrastructure 🐘
+- **PostgreSQL 15**: Relational database with multi-schema architecture for robust data isolation.
+- **Docker & Docker Compose**: Full-stack containerization for reproducible environments and easy deployment.
+- **Alpine Linux**: Minimal OS base images to reduce container footprint and improve security.
+
+---
+
+## 3. High-Level Design (HLD) Architecture
 
 The application is built upon a **highly scalable, decoupled multi-tier architecture** containerized with Docker.
 
@@ -140,7 +166,7 @@ PostgreSQL uses modular schema groups to separate operational units securely:
 
 ---
 
-## 3. Low-Level Design (LLD) Module Specifications
+## 4. Low-Level Design (LLD) Module Specifications
 
 ### Auth & Security Module
 - **Technology**: Spring Security, JWT (Stateless authentication tokens).
@@ -242,7 +268,7 @@ classDiagram
 
 ---
 
-## 4. Claim State Machine & Sequence Diagrams
+## 5. Claim State Machine & Sequence Diagrams
 
 Here is the sequential flow of asynchronous and synchronous actions triggered when a claim is processed:
 
@@ -286,7 +312,7 @@ sequenceDiagram
 
 ---
 
-## 5. Database Architecture & Entity Relationships (ERD)
+## 6. Database Architecture & Entity Relationships (ERD)
 
 This entity relationship diagram displays the core database schema design, showing how the transaction models connect:
 
@@ -346,7 +372,7 @@ erDiagram
 
 ---
 
-## 6. Local Deployment & Execution Guide
+## 7. Local Deployment & Execution Guide
 
 The environment runs fully containerized.
 
