@@ -40,3 +40,8 @@ backend/uploads/
 ### OS ###
 .DS_Store
 Thumbs.db
+
+### Sensitive ###
+key.pem
+login_details.txt
+project.tar.gz

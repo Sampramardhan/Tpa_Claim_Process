@@ -111,8 +111,13 @@ public class ClaimReportPdfService {
                 .orElseThrow(() -> new ResourceNotFoundException("Claim not found."));
 
         String stage = claim.getStage().name();
-        if (!"COMPLETED".equals(stage) && !"CARRIER".equals(stage) && !"CARRIER_REVIEW".equals(stage)) {
-            throw new ValidationException("Report is only available for completed or finalized claims.");
+        String status = claim.getStatus().name();
+        
+        boolean isFinalized = "COMPLETED".equals(stage) || "CARRIER".equals(stage) || "CARRIER_REVIEW".equals(stage);
+        boolean isDecided = "REJECTED".equals(status) || "PAID".equals(status) || "APPROVED".equals(status);
+
+        if (!isFinalized && !isDecided) {
+            throw new ValidationException("Report is only available for completed, finalized, or decided claims.");
         }
 
         ExtractedClaimData extractedData = extractedClaimDataRepository.findByClaim_Id(claimId).orElse(null);

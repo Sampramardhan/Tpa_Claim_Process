@@ -464,37 +464,91 @@ erDiagram
 
 ---
 
-## 7. Local Deployment & Execution Guide
+## 7. 🚀 Local Deployment & Setup Guide
 
-The environment runs fully containerized.
+Follow these steps to get the Enterprise TPA System running on your local machine.
 
-### 1. Prerequisites
-- **Docker & Docker Compose**
+### 📋 1. Prerequisites
+Ensure you have the following installed:
+- **Docker & Docker Compose** (Highly Recommended)
 - **Git**
+- **Java 17 JDK** & **Maven 3.9+** (For manual/local development)
+- **Node.js 20+** & **npm** (For manual/local development)
+- **PostgreSQL 15+** (Required only for manual development; included in Docker setup)
 
-### 2. Configuration (`.env`)
-Create a `.env` file from the example:
-```bash
-cp .env.example .env
-```
-
-### 3. Execution Commands
-
-To build and spin up the complete, secure environment:
-```bash
-# Spin up all Postgres, Backend and React Frontend instances
-docker compose up --build -d
-```
-
-To stop all active services and maintain the volume maps:
-```bash
-docker compose down
-```
-
-To review system execution metrics or analyze Spring boot start threads:
-```bash
-docker compose logs -f backend
-```
 
 ---
+
+### 🔑 2. Environment Configuration (`.env`)
+The system relies on environment variables for security and connectivity. Since the `.env` file is ignored by Git, you must create it manually.
+
+1. **Clone the Example**:
+   ```bash
+   cp .env.example .env
+   ```
+2. **Configure Vital Variables**: Open `.env` and fill in the following:
+
+| Category | Variable | Required Action |
+| :--- | :--- | :--- |
+| **OCR Engine** | `GOOGLE_AI_API_KEY` | **Required**. Get a free key from [Google AI Studio](https://aistudio.google.com/). |
+| **Database** | `POSTGRES_PASSWORD` | Set a secure password for your local Postgres instance. |
+| **Security** | `TPA_JWT_SECRET` | Generate a random string (min 32 chars) to secure user sessions. |
+| **Logins** | `TPA_STATIC_..._PASSWORD` | Set initial passwords for the Client, FMG, and Carrier roles. |
+
+---
+
+### 🛠️ 3. Execution Steps
+
+#### Option A: One-Click Setup (Docker) — *Recommended*
+This spins up the Database, Backend, Frontend, and Nginx proxy automatically.
+
+1.  **Build and Start**:
+    ```bash
+    docker compose up --build -d
+    ```
+2.  **Access the App**:
+    - **Main Portal**: [http://localhost](http://localhost) (Proxied via Nginx on port 80).
+    - **Backend API**: [http://localhost/api/v1](http://localhost/api/v1)
+    
+    > [!NOTE]
+    > When running via Docker, internal ports `8080` (Backend) and `5173` (Frontend) are not exposed directly to your host machine for security. Use port `80` to access the full system.
+
+
+#### Option B: Manual Development Setup (Windows)
+If you prefer running services outside Docker:
+
+1.  **Start Services**: Run the provided batch file:
+    ```bash
+    ./run-all.bat
+    ```
+2.  **Manual Verification**:
+    - Backend will start on port `8080`.
+    - Frontend will start on port `5173`.
+    - **Prerequisite**: Ensure a PostgreSQL database is running on `localhost:5432` with the credentials specified in your `.env`.
+
+
+---
+
+### 👤 4. Default Login Credentials
+Once the system is up, use these pre-configured accounts to explore different modules:
+
+| Role | Email | Default Password (from `.env`) |
+| :--- | :--- | :--- |
+| **💼 Client Admin** | `claims.officer@hdfcbank.com` | `HdfcClaims@2026` |
+| **🛡️ FMG Manager** | `review.manager@fmghealth.com` | `FmgReview@2026` |
+| **🏦 Carrier Underwriter** | `settlement.team@starhealth.com` | `StarHealth@2026` |
+
+> **Note**: For **Customers**, please use the **"Register"** button on the landing page to create a personal profile.
+
+---
+
+### 🧹 5. Maintenance Commands
+
+- **Stop Services**: `docker compose down`
+- **View Logs**: `docker compose logs -f backend`
+- **Reset Database**: `docker compose down -v` (Warning: deletes all data)
+
+---
+
 > **Corporate Notice**: This architecture is confidential and designed for the Third-Party Administrator Insurance System. All schema mappings, rules metrics, and database structural assets are protected.
+

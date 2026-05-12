@@ -17,6 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
+
 
 import java.util.Base64;
 import java.util.List;
@@ -161,8 +163,11 @@ public class GoogleAiStudioClaimOcrClient {
             return new ClaimOcrDocumentResponse(extractionResult, rawResponse);
         } catch (JsonProcessingException exception) {
             throw new FileStorageException("Unable to parse Google AI OCR response.", exception.getOriginalMessage());
+        } catch (RestClientResponseException exception) {
+            String errorBody = exception.getResponseBodyAsString();
+            throw new FileStorageException("Google AI OCR request failed with status " + exception.getStatusCode() + ": " + errorBody, exception.getMessage());
         } catch (RestClientException exception) {
-            throw new FileStorageException("Google AI OCR request failed.", exception.getMessage());
+            throw new FileStorageException("Google AI OCR request failed: " + exception.getMessage(), exception.getMessage());
         }
     }
 
@@ -184,7 +189,7 @@ public class GoogleAiStudioClaimOcrClient {
         ObjectNode generationConfig = root.putObject("generationConfig");
         generationConfig.put("responseMimeType", "application/json");
         generationConfig.put("temperature", 0);
-        generationConfig.set("responseJsonSchema", buildResponseSchema());
+        generationConfig.set("responseSchema", buildResponseSchema());
         return root;
     }
 
@@ -231,8 +236,7 @@ public class GoogleAiStudioClaimOcrClient {
 
     private ObjectNode buildResponseSchema() {
         ObjectNode schema = objectMapper.createObjectNode();
-        schema.put("type", "object");
-        schema.put("additionalProperties", false);
+        schema.put("type", "OBJECT");
         ObjectNode properties = schema.putObject("properties");
 
         addNullableString(properties, "policyNumber");
@@ -253,23 +257,22 @@ public class GoogleAiStudioClaimOcrClient {
     }
 
     private void addNullableString(ObjectNode properties, String fieldName) {
-        ArrayNode types = properties.putObject(fieldName).putArray("type");
-        types.add("string");
-        types.add("null");
+        ObjectNode node = properties.putObject(fieldName);
+        node.put("type", "STRING");
+        node.put("nullable", true);
     }
 
     private void addNullableDate(ObjectNode properties, String fieldName) {
         ObjectNode node = properties.putObject(fieldName);
-        ArrayNode types = node.putArray("type");
-        types.add("string");
-        types.add("null");
+        node.put("type", "STRING");
+        node.put("nullable", true);
         node.put("format", "date");
     }
 
     private void addNullableNumber(ObjectNode properties, String fieldName) {
-        ArrayNode types = properties.putObject(fieldName).putArray("type");
-        types.add("number");
-        types.add("null");
+        ObjectNode node = properties.putObject(fieldName);
+        node.put("type", "NUMBER");
+        node.put("nullable", true);
     }
 
     private String stripMarkdownCodeFence(String value) {

@@ -82,9 +82,14 @@ public class ClaimOcrProcessingService {
                     ? "OCR processing failed."
                     : exception.getMessage();
 
+            if (failureReason.length() > 2000) {
+                failureReason = failureReason.substring(0, 1997) + "...";
+            }
+
             String responseSnapshot = rawResponse;
+            String finalFailureReason = failureReason;
             transactionTemplate.executeWithoutResult(status ->
-                    persistFailure(claimId, responseSnapshot, failureReason)
+                    persistFailure(claimId, responseSnapshot, finalFailureReason)
             );
         }
     }

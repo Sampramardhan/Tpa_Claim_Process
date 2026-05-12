@@ -22,7 +22,7 @@ public class GoogleAiProperties {
     /**
      * Gemini model used for OCR-backed structured extraction.
      */
-    private String model = "gemini-2.5-flash";
+    private String model = "gemini-2.0-flash";
 
     public String getApiKey() {
         return apiKey;
